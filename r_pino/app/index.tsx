@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../contexts/AuthContext';
 import { AdaptiveContainer } from '../components/AdaptiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -82,71 +83,88 @@ export default function HomeScreen() {
     return (
         <AdaptiveContainer centerOnDesktop={true} maxWidth={1000}>
             <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-                <StatusBar style="auto" />
+                <StatusBar style="light" />
 
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerTop}>
-                        <Text style={styles.title}>R_PINE</Text>
-                        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                            <Text style={styles.logoutText}>Logout</Text>
-                        </TouchableOpacity>
+                {/* Modern App Bar */}
+                <View style={styles.appBar}>
+                    <View style={styles.appBarContent}>
+                        <View style={styles.brandContainer}>
+                            <View style={styles.logoContainer}>
+                                <Ionicons name="calculator" size={28} color="#FFFFFF" />
+                            </View>
+                            <View>
+                                <Text style={styles.appName}>Pino</Text>
+                                <Text style={styles.appTagline}>Math Training</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.userSection}>
+                            <View style={styles.welcomeContainer}>
+                                <Ionicons name="person-circle-outline" size={20} color="#FFFFFF" />
+                                <Text style={styles.welcomeText}>Hi, {user?.name?.split(' ')[0] || 'User'}!</Text>
+                            </View>
+                            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                                <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                    <Text style={styles.subtitle}>Welcome, {user?.name}</Text>
                 </View>
 
-                {/* Main content grid for desktop */}
-                <View style={[styles.mainContent, isDesktop && styles.mainContentDesktop]}>
-                    {/* Score Card */}
-                    <View style={[styles.scoreCard, isDesktop && styles.scoreCardDesktop]}>
-                        <Text style={styles.scoreLabel}>Current Score</Text>
-                        <Text style={styles.scoreValue}>{stats?.current_score || 0}</Text>
+                {/* Main Content */}
+                <View style={styles.mainContentWrapper}>
+                    {/* Main content grid for desktop */}
+                    <View style={[styles.mainContent, isDesktop && styles.mainContentDesktop]}>
+                        {/* Score Card */}
+                        <View style={[styles.scoreCard, isDesktop && styles.scoreCardDesktop]}>
+                            <Text style={styles.scoreLabel}>Current Score</Text>
+                            <Text style={styles.scoreValue}>{stats?.current_score || 0}</Text>
 
+                            {stats && (
+                                <View style={styles.statsRow}>
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statValue}>{stats.total_sessions}</Text>
+                                        <Text style={styles.statLabel}>Sessions</Text>
+                                    </View>
+                                    <View style={styles.statDivider} />
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statValue}>{stats.accuracy.toFixed(1)}%</Text>
+                                        <Text style={styles.statLabel}>Accuracy</Text>
+                                    </View>
+                                    <View style={styles.statDivider} />
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statValue}>{stats.total_exercises}</Text>
+                                        <Text style={styles.statLabel}>Exercises</Text>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+
+                        {/* Difficulty Preview */}
                         {stats && (
-                            <View style={styles.statsRow}>
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{stats.total_sessions}</Text>
-                                    <Text style={styles.statLabel}>Sessions</Text>
-                                </View>
-                                <View style={styles.statDivider} />
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{stats.accuracy.toFixed(1)}%</Text>
-                                    <Text style={styles.statLabel}>Accuracy</Text>
-                                </View>
-                                <View style={styles.statDivider} />
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{stats.total_exercises}</Text>
-                                    <Text style={styles.statLabel}>Exercises</Text>
+                            <View style={[styles.difficultyCard, isDesktop && styles.difficultyCardDesktop]}>
+                                <Text style={styles.cardTitle}>Current Difficulty</Text>
+                                <View style={styles.difficultyGrid}>
+                                    {Object.entries(stats.difficulty_by_operator).map(([op, diff]) => (
+                                        <View key={op} style={styles.difficultyItem}>
+                                            <Text style={styles.operatorIcon}>{op}</Text>
+                                            <Text style={styles.difficultyValue}>{diff.toFixed(1)}</Text>
+                                        </View>
+                                    ))}
                                 </View>
                             </View>
                         )}
                     </View>
 
-                    {/* Difficulty Preview */}
-                    {stats && (
-                        <View style={[styles.difficultyCard, isDesktop && styles.difficultyCardDesktop]}>
-                            <Text style={styles.cardTitle}>Current Difficulty</Text>
-                            <View style={styles.difficultyGrid}>
-                                {Object.entries(stats.difficulty_by_operator).map(([op, diff]) => (
-                                    <View key={op} style={styles.difficultyItem}>
-                                        <Text style={styles.operatorIcon}>{op}</Text>
-                                        <Text style={styles.difficultyValue}>{diff.toFixed(1)}</Text>
-                                    </View>
-                                ))}
-                            </View>
-                        </View>
-                    )}
-                </View>
+                    {/* Action Buttons */}
+                    <View style={[styles.buttonContainer, isDesktop && styles.buttonContainerDesktop]}>
+                        <TouchableOpacity style={[styles.primaryButton, isDesktop && styles.buttonDesktop]} onPress={handleStartSession}>
+                            <Text style={styles.primaryButtonText}>Start New Session</Text>
+                        </TouchableOpacity>
 
-                {/* Action Buttons */}
-                <View style={[styles.buttonContainer, isDesktop && styles.buttonContainerDesktop]}>
-                    <TouchableOpacity style={[styles.primaryButton, isDesktop && styles.buttonDesktop]} onPress={handleStartSession}>
-                        <Text style={styles.primaryButtonText}>Start New Session</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.secondaryButton, isDesktop && styles.buttonDesktop]} onPress={handleViewStats}>
-                        <Text style={styles.secondaryButtonText}>View Statistics</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity style={[styles.secondaryButton, isDesktop && styles.buttonDesktop]} onPress={handleViewStats}>
+                            <Text style={styles.secondaryButtonText}>View Statistics</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </ScrollView>
         </AdaptiveContainer>
@@ -159,35 +177,81 @@ const styles = StyleSheet.create({
         backgroundColor: '#F5F5F7',
     },
     contentContainer: {
-        padding: 20,
-        paddingTop: 60,
+        paddingBottom: 20,
     },
-    header: {
-        marginBottom: 30,
+    // Modern App Bar Styles
+    appBar: {
+        backgroundColor: '#007AFF',
+        paddingTop: 50,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+        marginBottom: 24,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
     },
-    headerTop: {
+    appBarContent: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
     },
-    title: {
-        fontSize: 42,
+    brandContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    logoContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    appName: {
+        fontSize: 28,
         fontWeight: 'bold',
-        color: '#007AFF',
+        color: '#FFFFFF',
+        letterSpacing: 0.5,
     },
-    subtitle: {
-        fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
+    appTagline: {
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.8)',
+        marginTop: -2,
+    },
+    userSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    welcomeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    welcomeText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#FFFFFF',
     },
     logoutButton: {
-        padding: 8,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    logoutText: {
-        color: '#FF3B30',
-        fontSize: 16,
-        fontWeight: '600',
+    mainContentWrapper: {
+        paddingHorizontal: 20,
     },
     scoreCard: {
         backgroundColor: 'white',

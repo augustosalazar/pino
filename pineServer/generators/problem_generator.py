@@ -59,8 +59,15 @@ class StandardProblemGenerator(IProblemGenerator):
             
         elif operator == Operator.DIVIDE:
             # Generate exact division
-            adjusted_max = min(50, int(max_val ** 0.5))
-            adjusted_min = max(2, min(10, min_val))
+            # Ensure we have a valid range by calculating carefully
+            adjusted_max = max(12, min(50, int(max_val ** 0.5)))
+            adjusted_min = min(2, adjusted_max - 1)  # Ensure min < max
+            
+            # Double-check we have a valid range
+            if adjusted_min >= adjusted_max:
+                adjusted_min = 2
+                adjusted_max = max(12, adjusted_min + 8)
+            
             op2 = random.randint(adjusted_min, adjusted_max)  # Divisor
             quotient = random.randint(adjusted_min, adjusted_max)
             op1 = op2 * quotient  # Dividend

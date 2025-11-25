@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { PineServerAPI } from '../services/api';
@@ -6,12 +6,14 @@ import { Exercise, ExerciseWithAnswer } from '../services/types';
 import { StatusBar } from 'expo-status-bar';
 import { AdaptiveContainer } from '../components/AdaptiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SessionScreen() {
     const router = useRouter();
     const { userRef } = useLocalSearchParams<{ userRef: string }>();
 
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [sessionId, setSessionId] = useState<string>('');
     const [exercises, setExercises] = useState<Exercise[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,12 +27,28 @@ export default function SessionScreen() {
 
     const startSession = async () => {
         try {
+            setLoading(true);
+            setError(null);
+            console.log('[SessionScreen] Starting session for user:', userRef);
+
             const response = await PineServerAPI.startSession(userRef as string, 10);
+
+            console.log('[SessionScreen] Session response:', response);
+
+            if (!response || !response.exercises || response.exercises.length === 0) {
+                throw new Error('No exercises received from server');
+            }
+
             setSessionId(response.session_id);
             setExercises(response.exercises);
             setStartTime(Date.now());
-        } catch (error) {
-            console.error('Failed to start session:', error);
+
+            console.log('[SessionScreen] Session started successfully with', response.exercises.length, 'exercises');
+        } catch (error: any) {
+            console.error('[SessionScreen] Failed to start session:', error);
+            const errorMessage = error.message || 'Failed to start session. Please try again.';
+            setError(errorMessage);
+            Alert.alert('Error', errorMessage);
         } finally {
             setLoading(false);
         }
@@ -101,18 +119,55 @@ export default function SessionScreen() {
             });
         } catch (error) {
             console.error('Failed to complete session:', error);
+            Alert.alert('Error', 'Failed to complete session. Please try again.');
         }
     };
 
     if (loading) {
         return (
-            <View style={styles.container}>
+            <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Loading exercises...</Text>
+            </View>
+        );
+    }
+
+    if (error || !exercises || exercises.length === 0) {
+        return (
+            <View style={styles.centerContainer}>
+                <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
+                <Text style={styles.errorTitle}>Oops!</Text>
+                <Text style={styles.errorText}>
+                    {error || 'Failed to load exercises'}
+                </Text>
+                <TouchableOpacity style={styles.retryButton} onPress={startSession}>
+                    <Ionicons name="refresh-outline" size={20} color="white" />
+                    <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => router.back()}
+                >
+                    <Text style={styles.backButtonText}>Go Back</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
     const exercise = exercises[currentIndex];
+
+    // Safety check
+    if (!exercise) {
+        return (
+            <View style={styles.centerContainer}>
+                <Text style={styles.errorText}>Exercise data is invalid</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={startSession}>
+                    <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     const progress = ((currentIndex + 1) / exercises.length) * 100;
 
     return (
@@ -182,6 +237,55 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F5F5F7',
+    },
+    centerContainer: {
+        flex: 1,
+        backgroundColor: '#F5F5F7',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#666',
+    },
+    errorTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#333',
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    errorText: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 24,
+        paddingHorizontal: 20,
+    },
+    retryButton: {
+        flexDirection: 'row',
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 12,
+    },
+    retryButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    backButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+    },
+    backButtonText: {
+        color: '#007AFF',
+        fontSize: 16,
     },
     progressContainer: {
         padding: 20,

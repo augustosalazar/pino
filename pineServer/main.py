@@ -128,11 +128,14 @@ async def start_session(request: StartSessionRequest):
     4. Return exercises
     """
     try:
+        print(f"[DEBUG] Starting session for user: {request.user_ref}")
+        
         # Get user's difficulty profiles
         profiles = roble_client.read_table(
             "pine_user_difficulty_profile",
             {"user_ref": request.user_ref}
         )
+        print(f"[DEBUG] Found {len(profiles)} difficulty profiles")
         
         # Build difficulty map
         difficulty_by_operator = {}
@@ -146,6 +149,7 @@ async def start_session(request: StartSessionRequest):
             if op not in difficulty_by_operator:
                 difficulty_by_operator[op] = 1.0
                 # Create initial profile
+                print(f"[DEBUG] Creating initial profile for operator: {op}")
                 roble_client.insert_records("pine_user_difficulty_profile", [{
                     "user_ref": request.user_ref,
                     "operator": op,
@@ -155,12 +159,16 @@ async def start_session(request: StartSessionRequest):
                     "total_correct": 0
                 }])
         
+        print(f"[DEBUG] Difficulty map: {difficulty_by_operator}")
+        
         # Generate exercises using injected batch generator
         container = get_container()
+        print(f"[DEBUG] Generating {request.num_exercises} exercises")
         exercises = container.batch_generator.generate_batch(
             difficulty_by_operator,
             request.num_exercises
         )
+        print(f"[DEBUG] Generated {len(exercises)} exercises")
         
         # Create session record
         session_data = {
@@ -172,12 +180,15 @@ async def start_session(request: StartSessionRequest):
             "score_earned": 0
         }
         
+        print(f"[DEBUG] Creating session record")
         result = roble_client.insert_records("pine_exercise_sessions", [session_data])
         
         if not result.get("inserted"):
+            print(f"[ERROR] Failed to create session - no inserted records returned")
             raise HTTPException(status_code=500, detail="Failed to create session")
         
         session_id = result["inserted"][0]["_id"]
+        print(f"[DEBUG] Session created with ID: {session_id}")
         
         return StartSessionResponse(
             session_id=session_id,
@@ -185,7 +196,12 @@ async def start_session(request: StartSessionRequest):
             user_profile=difficulty_by_operator
         )
     
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"[ERROR] Exception in start_session: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
