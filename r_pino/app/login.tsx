@@ -33,7 +33,7 @@ export default function LoginScreen() {
     const [loadingInstitutions, setLoadingInstitutions] = useState(true);
 
     useEffect(() => {
-        loadSavedCredentials();
+        loadSavedData();
         fetchInstitutions();
     }, []);
 
@@ -43,9 +43,23 @@ export default function LoginScreen() {
             const data = await PineServerAPI.getInstitutions();
             setInstitutions(data);
 
-            // Auto-select if only one institution
-            if (data.length === 1) {
+            // Try to load saved institution
+            const savedInstitutionId = await LocalStorage.retrieveData<string>('saved_institution_id');
+
+            if (savedInstitutionId) {
+                // Find and select the saved institution
+                const savedInst = data.find((inst: Institution) => inst._id === savedInstitutionId);
+                if (savedInst) {
+                    setSelectedInstitution(savedInst);
+                } else if (data.length > 0) {
+                    // If saved institution not found, default to first
+                    setSelectedInstitution(data[0]);
+                    await LocalStorage.storeData('saved_institution_id', data[0]._id);
+                }
+            } else if (data.length > 0) {
+                // No saved institution, default to first
                 setSelectedInstitution(data[0]);
+                await LocalStorage.storeData('saved_institution_id', data[0]._id);
             }
         } catch (error) {
             console.error('Failed to fetch institutions:', error);
@@ -55,7 +69,7 @@ export default function LoginScreen() {
         }
     };
 
-    const loadSavedCredentials = async () => {
+    const loadSavedData = async () => {
         const savedEmail = await LocalStorage.retrieveData<string>('saved_email');
         const savedPassword = await LocalStorage.retrieveData<string>('saved_password');
 
@@ -64,6 +78,13 @@ export default function LoginScreen() {
             setPassword(savedPassword);
             setRememberMe(true);
         }
+    };
+
+    const handleInstitutionSelect = async (institution: Institution) => {
+        setSelectedInstitution(institution);
+        setShowInstitutionPicker(false);
+        // Save selected institution for next time
+        await LocalStorage.storeData('saved_institution_id', institution._id);
     };
 
     const handleSubmit = async () => {
@@ -232,10 +253,7 @@ export default function LoginScreen() {
                                             styles.institutionItem,
                                             selectedInstitution?._id === item._id && styles.selectedInstitutionItem
                                         ]}
-                                        onPress={() => {
-                                            setSelectedInstitution(item);
-                                            setShowInstitutionPicker(false);
-                                        }}
+                                        onPress={() => handleInstitutionSelect(item)}
                                     >
                                         <Text style={[
                                             styles.institutionText,
