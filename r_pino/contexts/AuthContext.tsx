@@ -25,45 +25,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
         setLoading(false);
     }
-};
 
-const login = async (email: string, password: string) => {
-    try {
-        const authUser = await authService.login(email, password);
-        setUser(authUser);
-        // Navigation handled by useEffect
-    } catch (error) {
-        console.error('Login failed:', error);
-        throw error;
-    }
-};
 
-const signup = async (email: string, password: string, name: string) => {
-    try {
-        const authUser = await authService.signup(email, password, name);
-        setUser(authUser);
-        // Navigation handled by useEffect
-    } catch (error) {
-        console.error('Signup failed:', error);
-        throw error;
-    }
-};
+    const login = async (email: string, password: string) => {
+        try {
+            const authUser = await authService.login(email, password);
+            setUser(authUser);
+            // Navigation handled by useEffect
+        } catch (error) {
+            console.error('Login failed:', error);
+            throw error;
+        }
+    };
 
-const logout = async () => {
-    try {
-        await authService.logout();
-        setUser(null);
-    } catch (error) {
-        console.error('Logout failed:', error);
-        throw error;
-    }
-};
+    const signup = async (email: string, password: string, name: string) => {
+        try {
+            const authUser = await authService.signup(email, password, name);
+            setUser(authUser);
+            // Navigation handled by useEffect
+        } catch (error) {
+            console.error('Signup failed:', error);
+            throw error;
+        }
+    };
 
-return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
-        {children}
-    </AuthContext.Provider>
-);
+    const logout = async () => {
+        try {
+            await authService.logout();
+            setUser(null);
+        } catch (error) {
+            console.error('Logout failed:', error);
+            throw error;
+        }
+    };
+
+    return (
+        <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+            {children}
+        </AuthContext.Provider>
+    );
 }
 
 export function useAuth() {
