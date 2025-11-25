@@ -16,8 +16,7 @@ from models import (
     UserProfile, UserStats, Operator, EnsureUserRequest
 )
 from roble_client import roble_client
-from exercise_generator import exercise_generator
-from difficulty_manager import difficulty_manager
+from container import get_container
 
 app = FastAPI(
     title="PineServer API",
@@ -126,8 +125,9 @@ async def start_session(request: StartSessionRequest):
                     "total_correct": 0
                 }])
         
-        # Generate exercises
-        exercises = exercise_generator.generate_exercise_set(
+        # Generate exercises using injected batch generator
+        container = get_container()
+        exercises = container.batch_generator.generate_batch(
             difficulty_by_operator,
             request.num_exercises
         )
@@ -183,10 +183,11 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
         print(f"[DEBUG] Session user_ref: {user_ref}")
         
        # Calculate statistics
+        container = get_container()
         total_exercises = len(request.exercises)
         correct_answers = sum(1 for e in request.exercises if e.is_correct)
         total_time = sum(e.time_taken_ms for e in request.exercises)
-        score_earned = difficulty_manager.calculate_score(request.exercises)
+        score_earned = container.profile_evaluator.calculate_score(request.exercises)
         print(f"[DEBUG] Stats - Total: {total_exercises}, Correct: {correct_answers}, Score: {score_earned}")
         
         # Save individual exercises
@@ -240,8 +241,8 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
             print(f"[ERROR] Failed to read profiles: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to read profiles: {str(e)}")
         
-        # Calculate difficulty adjustments
-        new_difficulty, adjustments = difficulty_manager.calculate_adjustments(
+        # Calculate difficulty adjustments using injected evaluator
+        new_difficulty, adjustments = container.profile_evaluator.evaluate_performance(
             request.exercises,
             current_difficulty
         )
