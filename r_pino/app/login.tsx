@@ -4,9 +4,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LocalStorage } from '../services/storage';
+import { AdaptiveContainer } from '../components/AdaptiveContainer';
+import { useResponsive } from '../hooks/useResponsive';
 
 export default function LoginScreen() {
     const { login, signup } = useAuth();
+    const { isTabletOrDesktop } = useResponsive();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -64,87 +67,89 @@ export default function LoginScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <AdaptiveContainer centerOnDesktop={true} maxWidth={500}>
+            <View style={styles.container}>
+                <StatusBar style="auto" />
 
-            <View style={styles.content}>
-                <Text style={styles.title}>{isLogin ? 'Welcome Back' : 'Create Account'}</Text>
-                <Text style={styles.subtitle}>
-                    {isLogin ? 'Sign in to continue your training' : 'Join R_PINE to start learning'}
-                </Text>
+                <View style={[styles.content, isTabletOrDesktop && styles.contentWeb]}>
+                    <Text style={styles.title}>{isLogin ? 'Welcome Back' : 'Create Account'}</Text>
+                    <Text style={styles.subtitle}>
+                        {isLogin ? 'Sign in to continue your training' : 'Join R_PINE to start learning'}
+                    </Text>
 
-                <View style={styles.form}>
-                    {!isLogin && (
+                    <View style={styles.form}>
+                        {!isLogin && (
+                            <View style={styles.inputContainer}>
+                                <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Full Name"
+                                    value={name}
+                                    onChangeText={setName}
+                                    autoCapitalize="words"
+                                />
+                            </View>
+                        )}
+
                         <View style={styles.inputContainer}>
-                            <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+                            <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="Full Name"
-                                value={name}
-                                onChangeText={setName}
-                                autoCapitalize="words"
+                                placeholder="Email"
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
                             />
                         </View>
-                    )}
 
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Email"
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
-                    </View>
+                        <View style={styles.inputContainer}>
+                            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Password"
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry={!showPassword}
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#666" />
+                            </TouchableOpacity>
+                        </View>
 
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Password"
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry={!showPassword}
-                        />
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#666" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {isLogin && (
-                        <TouchableOpacity
-                            style={styles.rememberContainer}
-                            onPress={() => setRememberMe(!rememberMe)}
-                        >
-                            <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                                {rememberMe && <Ionicons name="checkmark" size={14} color="white" />}
-                            </View>
-                            <Text style={styles.rememberText}>Remember me</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity
-                        style={[styles.button, loading && styles.buttonDisabled]}
-                        onPress={handleSubmit}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <Text style={styles.buttonText}>{isLogin ? 'Sign In' : 'Sign Up'}</Text>
+                        {isLogin && (
+                            <TouchableOpacity
+                                style={styles.rememberContainer}
+                                onPress={() => setRememberMe(!rememberMe)}
+                            >
+                                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                                    {rememberMe && <Ionicons name="checkmark" size={14} color="white" />}
+                                </View>
+                                <Text style={styles.rememberText}>Remember me</Text>
+                            </TouchableOpacity>
                         )}
-                    </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.switchButton}>
-                        <Text style={styles.switchText}>
-                            {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
-                        </Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.button, loading && styles.buttonDisabled]}
+                            onPress={handleSubmit}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.buttonText}>{isLogin ? 'Sign In' : 'Sign Up'}</Text>
+                            )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.switchButton}>
+                            <Text style={styles.switchText}>
+                                {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
-        </View>
+        </AdaptiveContainer>
     );
 }
 
@@ -164,6 +169,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 5,
+    },
+    contentWeb: {
+        marginHorizontal: 'auto',
+        marginVertical: 'auto',
     },
     title: {
         fontSize: 32,

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { PineServerAPI } from '../services/api';
 import { Exercise, ExerciseWithAnswer } from '../services/types';
 import { StatusBar } from 'expo-status-bar';
+import { AdaptiveContainer } from '../components/AdaptiveContainer';
+import { useResponsive } from '../hooks/useResponsive';
 
 export default function SessionScreen() {
     const router = useRouter();
@@ -114,63 +116,65 @@ export default function SessionScreen() {
     const progress = ((currentIndex + 1) / exercises.length) * 100;
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <AdaptiveContainer centerOnDesktop={true} maxWidth={700}>
+            <View style={styles.container}>
+                <StatusBar style="auto" />
 
-            {/* Progress Bar */}
-            <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${progress}%` }]} />
-                </View>
-                <Text style={styles.progressText}>
-                    {currentIndex + 1} / {exercises.length}
-                </Text>
-            </View>
-
-            <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-                {/* Exercise */}
-                <View style={styles.exerciseCard}>
-                    <Text style={styles.exerciseLabel}>Solve this:</Text>
-                    <Text style={styles.exerciseText}>
-                        {exercise.operand_1} {exercise.operator} {exercise.operand_2} = ?
+                {/* Progress Bar */}
+                <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                    </View>
+                    <Text style={styles.progressText}>
+                        {currentIndex + 1} / {exercises.length}
                     </Text>
-                    <Text style={styles.difficultyLabel}>Difficulty: {exercise.difficulty_level.toFixed(1)}</Text>
                 </View>
 
-                {/* Answer Options */}
-                {exercise.exercise_type === 1 && exercise.options ? (
-                    <View style={styles.optionsContainer}>
-                        {exercise.options.map((option, index) => (
+                <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+                    {/* Exercise */}
+                    <View style={styles.exerciseCard}>
+                        <Text style={styles.exerciseLabel}>Solve this:</Text>
+                        <Text style={styles.exerciseText}>
+                            {exercise.operand_1} {exercise.operator} {exercise.operand_2} = ?
+                        </Text>
+                        <Text style={styles.difficultyLabel}>Difficulty: {exercise.difficulty_level.toFixed(1)}</Text>
+                    </View>
+
+                    {/* Answer Options */}
+                    {exercise.exercise_type === 1 && exercise.options ? (
+                        <View style={styles.optionsContainer}>
+                            {exercise.options.map((option, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.optionButton}
+                                    onPress={() => handleMultipleChoiceAnswer(option)}
+                                >
+                                    <Text style={styles.optionText}>{option}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    ) : (
+                        <View style={styles.textInputContainer}>
+                            <TextInput
+                                style={styles.textInput}
+                                value={textAnswer}
+                                onChangeText={setTextAnswer}
+                                keyboardType="numeric"
+                                placeholder="Enter your answer"
+                                autoFocus
+                            />
                             <TouchableOpacity
-                                key={index}
-                                style={styles.optionButton}
-                                onPress={() => handleMultipleChoiceAnswer(option)}
+                                style={[styles.submitButton, !textAnswer && styles.submitButtonDisabled]}
+                                onPress={handleTextInputSubmit}
+                                disabled={!textAnswer}
                             >
-                                <Text style={styles.optionText}>{option}</Text>
+                                <Text style={styles.submitButtonText}>Submit</Text>
                             </TouchableOpacity>
-                        ))}
-                    </View>
-                ) : (
-                    <View style={styles.textInputContainer}>
-                        <TextInput
-                            style={styles.textInput}
-                            value={textAnswer}
-                            onChangeText={setTextAnswer}
-                            keyboardType="numeric"
-                            placeholder="Enter your answer"
-                            autoFocus
-                        />
-                        <TouchableOpacity
-                            style={[styles.submitButton, !textAnswer && styles.submitButtonDisabled]}
-                            onPress={handleTextInputSubmit}
-                            disabled={!textAnswer}
-                        >
-                            <Text style={styles.submitButtonText}>Submit</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </ScrollView>
-        </View>
+                        </View>
+                    )}
+                </ScrollView>
+            </View>
+        </AdaptiveContainer>
     );
 }
 

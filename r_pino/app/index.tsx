@@ -1,14 +1,17 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { PineServerAPI } from '../services/api';
 import { StatsResponse } from '../services/types';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../contexts/AuthContext';
+import { AdaptiveContainer } from '../components/AdaptiveContainer';
+import { useResponsive } from '../hooks/useResponsive';
 
 export default function HomeScreen() {
     const router = useRouter();
     const { user, logout } = useAuth();
+    const { isTabletOrDesktop, isDesktop } = useResponsive();
     const [stats, setStats] = useState<StatsResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -77,69 +80,76 @@ export default function HomeScreen() {
     }
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <AdaptiveContainer centerOnDesktop={true} maxWidth={1000}>
+            <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+                <StatusBar style="auto" />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <View style={styles.headerTop}>
-                    <Text style={styles.title}>R_PINE</Text>
-                    <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                        <Text style={styles.logoutText}>Logout</Text>
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerTop}>
+                        <Text style={styles.title}>R_PINE</Text>
+                        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                            <Text style={styles.logoutText}>Logout</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={styles.subtitle}>Welcome, {user?.name}</Text>
+                </View>
+
+                {/* Main content grid for desktop */}
+                <View style={[styles.mainContent, isDesktop && styles.mainContentDesktop]}>
+                    {/* Score Card */}
+                    <View style={[styles.scoreCard, isDesktop && styles.scoreCardDesktop]}>
+                        <Text style={styles.scoreLabel}>Current Score</Text>
+                        <Text style={styles.scoreValue}>{stats?.current_score || 0}</Text>
+
+                        {stats && (
+                            <View style={styles.statsRow}>
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{stats.total_sessions}</Text>
+                                    <Text style={styles.statLabel}>Sessions</Text>
+                                </View>
+                                <View style={styles.statDivider} />
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{stats.accuracy.toFixed(1)}%</Text>
+                                    <Text style={styles.statLabel}>Accuracy</Text>
+                                </View>
+                                <View style={styles.statDivider} />
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{stats.total_exercises}</Text>
+                                    <Text style={styles.statLabel}>Exercises</Text>
+                                </View>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Difficulty Preview */}
+                    {stats && (
+                        <View style={[styles.difficultyCard, isDesktop && styles.difficultyCardDesktop]}>
+                            <Text style={styles.cardTitle}>Current Difficulty</Text>
+                            <View style={styles.difficultyGrid}>
+                                {Object.entries(stats.difficulty_by_operator).map(([op, diff]) => (
+                                    <View key={op} style={styles.difficultyItem}>
+                                        <Text style={styles.operatorIcon}>{op}</Text>
+                                        <Text style={styles.difficultyValue}>{diff.toFixed(1)}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
+                </View>
+
+                {/* Action Buttons */}
+                <View style={[styles.buttonContainer, isDesktop && styles.buttonContainerDesktop]}>
+                    <TouchableOpacity style={[styles.primaryButton, isDesktop && styles.buttonDesktop]} onPress={handleStartSession}>
+                        <Text style={styles.primaryButtonText}>Start New Session</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.secondaryButton, isDesktop && styles.buttonDesktop]} onPress={handleViewStats}>
+                        <Text style={styles.secondaryButtonText}>View Statistics</Text>
                     </TouchableOpacity>
                 </View>
-                <Text style={styles.subtitle}>Welcome, {user?.name}</Text>
-            </View>
-
-            {/* Score Card */}
-            <View style={styles.scoreCard}>
-                <Text style={styles.scoreLabel}>Current Score</Text>
-                <Text style={styles.scoreValue}>{stats?.current_score || 0}</Text>
-
-                {stats && (
-                    <View style={styles.statsRow}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{stats.total_sessions}</Text>
-                            <Text style={styles.statLabel}>Sessions</Text>
-                        </View>
-                        <View style={styles.statDivider} />
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{stats.accuracy.toFixed(1)}%</Text>
-                            <Text style={styles.statLabel}>Accuracy</Text>
-                        </View>
-                        <View style={styles.statDivider} />
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{stats.total_exercises}</Text>
-                            <Text style={styles.statLabel}>Exercises</Text>
-                        </View>
-                    </View>
-                )}
-            </View>
-
-            {/* Difficulty Preview */}
-            {stats && (
-                <View style={styles.difficultyCard}>
-                    <Text style={styles.cardTitle}>Current Difficulty</Text>
-                    <View style={styles.difficultyGrid}>
-                        {Object.entries(stats.difficulty_by_operator).map(([op, diff]) => (
-                            <View key={op} style={styles.difficultyItem}>
-                                <Text style={styles.operatorIcon}>{op}</Text>
-                                <Text style={styles.difficultyValue}>{diff.toFixed(1)}</Text>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-            )}
-
-            {/* Action Buttons */}
-            <TouchableOpacity style={styles.primaryButton} onPress={handleStartSession}>
-                <Text style={styles.primaryButtonText}>Start New Session</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleViewStats}>
-                <Text style={styles.secondaryButtonText}>View Statistics</Text>
-            </TouchableOpacity>
-        </View>
+            </ScrollView>
+        </AdaptiveContainer>
     );
 }
 
@@ -147,6 +157,8 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F5F5F7',
+    },
+    contentContainer: {
         padding: 20,
         paddingTop: 60,
     },
@@ -301,5 +313,32 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
+    },
+    // Desktop responsive styles
+    mainContent: {
+        marginBottom: 24,
+    },
+    mainContentDesktop: {
+        flexDirection: 'row',
+        gap: 16,
+        alignItems: 'flex-start',
+    },
+    scoreCardDesktop: {
+        flex: 1,
+        minHeight: 250,
+    },
+    difficultyCardDesktop: {
+        flex: 1,
+    },
+    buttonContainer: {
+        gap: 12,
+    },
+    buttonContainerDesktop: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    buttonDesktop: {
+        flex: 1,
+        marginBottom: 0,
     },
 });
