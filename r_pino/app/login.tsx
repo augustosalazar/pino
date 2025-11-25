@@ -6,10 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LocalStorage } from '../services/storage';
 import { AdaptiveContainer } from '../components/AdaptiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
+import { useTranslation } from 'react-i18next';
 
 export default function LoginScreen() {
     const { login, signup } = useAuth();
     const { isTabletOrDesktop } = useResponsive();
+    const { t } = useTranslation();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -35,12 +37,12 @@ export default function LoginScreen() {
 
     const handleSubmit = async () => {
         if (!email || !password) {
-            Alert.alert('Error', 'Please fill in all fields');
+            Alert.alert(t('common.error'), t('auth.fillAllFields'));
             return;
         }
 
         if (!isLogin && !name) {
-            Alert.alert('Error', 'Please enter your name');
+            Alert.alert(t('common.error'), t('auth.enterName'));
             return;
         }
 
@@ -60,7 +62,7 @@ export default function LoginScreen() {
                 await signup(email, password, name);
             }
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Authentication failed');
+            Alert.alert(t('common.error'), error.message || t('auth.authFailed'));
         } finally {
             setLoading(false);
         }
@@ -72,9 +74,9 @@ export default function LoginScreen() {
                 <StatusBar style="auto" />
 
                 <View style={[styles.content, isTabletOrDesktop && styles.contentWeb]}>
-                    <Text style={styles.title}>{isLogin ? 'Welcome Back' : 'Create Account'}</Text>
+                    <Text style={styles.title}>{isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}</Text>
                     <Text style={styles.subtitle}>
-                        {isLogin ? 'Sign in to continue your training' : 'Join R_PINE to start learning'}
+                        {isLogin ? t('auth.signInSubtitle') : t('auth.signUpSubtitle')}
                     </Text>
 
                     <View style={styles.form}>
@@ -83,7 +85,7 @@ export default function LoginScreen() {
                                 <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Full Name"
+                                    placeholder={t('auth.fullName')}
                                     value={name}
                                     onChangeText={setName}
                                     autoCapitalize="words"
@@ -95,7 +97,7 @@ export default function LoginScreen() {
                             <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="Email"
+                                placeholder={t('auth.email')}
                                 value={email}
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
@@ -107,7 +109,7 @@ export default function LoginScreen() {
                             <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="Password"
+                                placeholder={t('auth.password')}
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
@@ -125,7 +127,7 @@ export default function LoginScreen() {
                                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
                                     {rememberMe && <Ionicons name="checkmark" size={14} color="white" />}
                                 </View>
-                                <Text style={styles.rememberText}>Remember me</Text>
+                                <Text style={styles.rememberText}>{t('auth.rememberMe')}</Text>
                             </TouchableOpacity>
                         )}
 
@@ -137,13 +139,13 @@ export default function LoginScreen() {
                             {loading ? (
                                 <ActivityIndicator color="white" />
                             ) : (
-                                <Text style={styles.buttonText}>{isLogin ? 'Sign In' : 'Sign Up'}</Text>
+                                <Text style={styles.buttonText}>{isLogin ? t('auth.signIn') : t('auth.signUp')}</Text>
                             )}
                         </TouchableOpacity>
 
                         <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.switchButton}>
                             <Text style={styles.switchText}>
-                                {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                                {isLogin ? t('auth.dontHaveAccount') : t('auth.alreadyHaveAccount')}
                             </Text>
                         </TouchableOpacity>
                     </View>

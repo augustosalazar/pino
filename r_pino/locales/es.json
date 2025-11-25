@@ -1,0 +1,68 @@
+{
+    "common": {
+        "logout": "Cerrar sesión",
+        "loading": "Cargando...",
+        "error": "Error",
+        "retry": "Reintentar",
+        "submit": "Enviar",
+        "cancel": "Cancelar"
+    },
+    "auth": {
+        "welcomeBack": "Bienvenido de nuevo",
+        "createAccount": "Crear cuenta",
+        "signInSubtitle": "Inicia sesión para continuar tu entrenamiento",
+        "signUpSubtitle": "Únete a R_PINE para comenzar a aprender",
+        "email": "Correo electrónico",
+        "password": "Contraseña",
+        "fullName": "Nombre completo",
+        "rememberMe": "Recordarme",
+        "signIn": "Iniciar sesión",
+        "signUp": "Registrarse",
+        "dontHaveAccount": "¿No tienes una cuenta? Regístrate",
+        "alreadyHaveAccount": "¿Ya tienes una cuenta? Inicia sesión",
+        "fillAllFields": "Por favor completa todos los campos",
+        "enterName": "Por favor ingresa tu nombre",
+        "authFailed": "Falló la autenticación"
+    },
+    "home": {
+        "title": "R_PINE",
+        "welcome": "Bienvenido, {{name}}",
+        "currentScore": "Puntaje actual",
+        "sessions": "Sesiones",
+        "accuracy": "Precisión",
+        "exercises": "Ejercicios",
+        "currentDifficulty": "Dificultad actual",
+        "startNewSession": "Iniciar nueva sesión",
+        "viewStatistics": "Ver estadísticas",
+        "failedToLoadStats": "Error al cargar las estadísticas. Por favor intenta de nuevo."
+    },
+    "session": {
+        "solveThis": "Resuelve esto:",
+        "difficulty": "Dificultad: {{level}}",
+        "enterAnswer": "Ingresa tu respuesta",
+        "progress": "{{current}} / {{total}}"
+    },
+    "results": {
+        "sessionComplete": "¡Sesión completada!",
+        "greatJob": "¡Excelente trabajo!",
+        "score": "Puntaje",
+        "accuracy": "Precisión",
+        "exercises": "Ejercicios",
+        "timePerExercise": "Tiempo por ejercicio",
+        "backToHome": "Volver al inicio",
+        "viewDetails": "Ver detalles"
+    },
+    "stats": {
+        "title": "Estadísticas",
+        "overallPerformance": "Rendimiento general",
+        "totalScore": "Puntaje total",
+        "totalSessions": "Total de sesiones",
+        "totalExercises": "Total de ejercicios",
+        "averageAccuracy": "Precisión promedio",
+        "difficultyByOperator": "Dificultad por operador",
+        "recentSessions": "Sesiones recientes",
+        "noSessions": "Aún no hay sesiones",
+        "sessionDate": "Sesión {{number}}",
+        "points": "puntos"
+    }
+}

@@ -1,8 +1,6 @@
 import { LocalStorage } from './storage';
 import { PineServerAPI } from './api';
-
-const ROBLE_PROJECT_ID = 'tracking_7d2ad2db74';
-const ROBLE_BASE_URL = 'https://roble-api.openlab.uninorte.edu.co';
+import { config } from '../config';
 
 export interface AuthUser {
     id: string;
@@ -16,7 +14,7 @@ export class AuthService {
     private baseUrl: string;
 
     constructor() {
-        this.baseUrl = `${ROBLE_BASE_URL}/auth/${ROBLE_PROJECT_ID}`;
+        this.baseUrl = `${config.roble.baseUrl}/auth/${config.roble.projectId}`;
     }
 
     async login(email: string, password: string): Promise<AuthUser> {

@@ -1,0 +1,68 @@
+{
+    "common": {
+        "logout": "Logout",
+        "loading": "Loading...",
+        "error": "Error",
+        "retry": "Retry",
+        "submit": "Submit",
+        "cancel": "Cancel"
+    },
+    "auth": {
+        "welcomeBack": "Welcome Back",
+        "createAccount": "Create Account",
+        "signInSubtitle": "Sign in to continue your training",
+        "signUpSubtitle": "Join R_PINE to start learning",
+        "email": "Email",
+        "password": "Password",
+        "fullName": "Full Name",
+        "rememberMe": "Remember me",
+        "signIn": "Sign In",
+        "signUp": "Sign Up",
+        "dontHaveAccount": "Don't have an account? Sign Up",
+        "alreadyHaveAccount": "Already have an account? Sign In",
+        "fillAllFields": "Please fill in all fields",
+        "enterName": "Please enter your name",
+        "authFailed": "Authentication failed"
+    },
+    "home": {
+        "title": "R_PINE",
+        "welcome": "Welcome, {{name}}",
+        "currentScore": "Current Score",
+        "sessions": "Sessions",
+        "accuracy": "Accuracy",
+        "exercises": "Exercises",
+        "currentDifficulty": "Current Difficulty",
+        "startNewSession": "Start New Session",
+        "viewStatistics": "View Statistics",
+        "failedToLoadStats": "Failed to load statistics. Please try again."
+    },
+    "session": {
+        "solveThis": "Solve this:",
+        "difficulty": "Difficulty: {{level}}",
+        "enterAnswer": "Enter your answer",
+        "progress": "{{current}} / {{total}}"
+    },
+    "results": {
+        "sessionComplete": "Session Complete!",
+        "greatJob": "Great job!",
+        "score": "Score",
+        "accuracy": "Accuracy",
+        "exercises": "Exercises",
+        "timePerExercise": "Time per Exercise",
+        "backToHome": "Back to Home",
+        "viewDetails": "View Details"
+    },
+    "stats": {
+        "title": "Statistics",
+        "overallPerformance": "Overall Performance",
+        "totalScore": "Total Score",
+        "totalSessions": "Total Sessions",
+        "totalExercises": "Total Exercises",
+        "averageAccuracy": "Average Accuracy",
+        "difficultyByOperator": "Difficulty by Operator",
+        "recentSessions": "Recent Sessions",
+        "noSessions": "No sessions yet",
+        "sessionDate": "Session {{number}}",
+        "points": "points"
+    }
+}
