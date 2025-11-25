@@ -17,7 +17,7 @@ export class AuthService {
         this.baseUrl = `${config.roble.baseUrl}/auth/${config.roble.projectId}`;
     }
 
-    async login(email: string, password: string): Promise<AuthUser> {
+    async login(email: string, password: string, institutionRef?: string): Promise<AuthUser> {
         try {
             const response = await fetch(`${this.baseUrl}/login`, {
                 method: 'POST',
@@ -40,8 +40,13 @@ export class AuthService {
                 console.log('Auth login basic success');
 
                 // Ensure user exists in pine_users and get their data (like username)
-                const pineUserResponse = await PineServerAPI.ensureUser(userId, email);
+                const pineUserResponse = await PineServerAPI.ensureUser(userId, email, undefined, institutionRef);
                 const pineUser = pineUserResponse.user;
+
+                // Store institution if provided
+                if (institutionRef) {
+                    await LocalStorage.storeData('institutionRef', institutionRef);
+                }
 
                 const user: AuthUser = {
                     id: userId,
@@ -64,7 +69,7 @@ export class AuthService {
         }
     }
 
-    async signup(email: string, password: string, name: string): Promise<AuthUser> {
+    async signup(email: string, password: string, name: string, institutionRef?: string): Promise<AuthUser> {
         try {
             // 1. Create account in Roble Auth
             const response = await fetch(`${this.baseUrl}/signup-direct`, {
@@ -94,8 +99,13 @@ export class AuthService {
                 await LocalStorage.storeData('userId', userId);
                 await LocalStorage.storeData('email', email);
 
+                // Store institution if provided
+                if (institutionRef) {
+                    await LocalStorage.storeData('institutionRef', institutionRef);
+                }
+
                 // 3. Create entry in pine_users directly
-                await PineServerAPI.ensureUser(userId, email, name);
+                await PineServerAPI.ensureUser(userId, email, name, institutionRef);
 
                 return {
                     id: userId,

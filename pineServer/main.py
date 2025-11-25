@@ -13,7 +13,8 @@ from datetime import datetime
 from models import (
     StartSessionRequest, StartSessionResponse,
     CompleteSessionRequest, CompleteSessionResponse,
-    UserProfile, UserStats, Operator, EnsureUserRequest
+    UserProfile, UserStats, Operator, EnsureUserRequest,
+    Institution
 )
 from roble_client import roble_client
 from container import get_container
@@ -44,21 +45,46 @@ def read_root():
     }
 
 
+@app.get("/api/institutions")
+async def get_institutions():
+    """
+    Get all available institutions from pine_institutions table
+    """
+    try:
+        institutions = roble_client.read_table("pine_institutions", {})
+        return institutions
+    except Exception as e:
+        print(f"[ERROR] Exception in get_institutions: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/users/ensure")
 async def ensure_user(request: EnsureUserRequest):
     """
     Ensure user exists in pine_users table
     Creates user if doesn't exist, returns existing user if found
+    Validates institution_ref for existing users
     """
     try:
         # Check if user exists
         users = roble_client.read_table("pine_users", {"user_ref": request.user_ref})
         
         if users and len(users) > 0:
-            # User exists, return it
+            # User exists, validate institution if provided
+            existing_user = users[0]
+            if request.institution_ref:
+                stored_institution = existing_user.get("institution_ref")
+                if stored_institution and stored_institution != request.institution_ref:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Institution mismatch. This account is associated with a different institution."
+                    )
+            
             return {
                 "status": "existing",
-                "user": users[0]
+                "user": existing_user
             }
         
         # User doesn't exist, create it
@@ -68,6 +94,10 @@ async def ensure_user(request: EnsureUserRequest):
             "username": request.username or request.email.split('@')[0],
             "current_score": 0
         }
+        
+        # Add institution_ref if provided
+        if request.institution_ref:
+            user_data["institution_ref"] = request.institution_ref
         
         result = roble_client.insert_records("pine_users", [user_data])
         

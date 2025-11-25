@@ -5,9 +5,22 @@ import { config } from '../config';
 export class PineServerAPI {
 
     /**
+     * Get all available institutions
+     */
+    static async getInstitutions(): Promise<any[]> {
+        const response = await fetch(`${config.api.baseUrl}/institutions`);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch institutions: ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
+
+    /**
      * Ensure user exists in database (create if doesn't exist)
      */
-    static async ensureUser(userRef: string, email: string, username?: string): Promise<any> {
+    static async ensureUser(userRef: string, email: string, username?: string, institutionRef?: string): Promise<any> {
         const response = await fetch(`${config.api.baseUrl}/users/ensure`, {
             method: 'POST',
             headers: {
@@ -17,11 +30,13 @@ export class PineServerAPI {
                 user_ref: userRef,
                 email: email,
                 username: username,
+                institution_ref: institutionRef,
             }),
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to ensure user: ${response.statusText}`);
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Failed to ensure user: ${response.statusText}`);
         }
 
         return await response.json();
@@ -30,8 +45,8 @@ export class PineServerAPI {
     /**
      * Create user (alias for ensureUser)
      */
-    static async createUser(userRef: string, email: string, username?: string): Promise<any> {
-        return this.ensureUser(userRef, email, username);
+    static async createUser(userRef: string, email: string, username?: string, institutionRef?: string): Promise<any> {
+        return this.ensureUser(userRef, email, username, institutionRef);
     }
 
     /**

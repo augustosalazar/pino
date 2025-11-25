@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, FlatList, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +7,12 @@ import { LocalStorage } from '../services/storage';
 import { AdaptiveContainer } from '../components/AdaptiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
 import { useTranslation } from 'react-i18next';
+import { PineServerAPI } from '../services/api';
+
+interface Institution {
+    _id: string;
+    name: string;
+}
 
 export default function LoginScreen() {
     const { login, signup } = useAuth();
@@ -20,9 +26,34 @@ export default function LoginScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
 
+    // Institution state
+    const [institutions, setInstitutions] = useState<Institution[]>([]);
+    const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
+    const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
+    const [loadingInstitutions, setLoadingInstitutions] = useState(true);
+
     useEffect(() => {
         loadSavedCredentials();
+        fetchInstitutions();
     }, []);
+
+    const fetchInstitutions = async () => {
+        try {
+            setLoadingInstitutions(true);
+            const data = await PineServerAPI.getInstitutions();
+            setInstitutions(data);
+
+            // Auto-select if only one institution
+            if (data.length === 1) {
+                setSelectedInstitution(data[0]);
+            }
+        } catch (error) {
+            console.error('Failed to fetch institutions:', error);
+            Alert.alert(t('common.error'), 'Failed to load institutions. Please try again.');
+        } finally {
+            setLoadingInstitutions(false);
+        }
+    };
 
     const loadSavedCredentials = async () => {
         const savedEmail = await LocalStorage.retrieveData<string>('saved_email');
@@ -41,6 +72,11 @@ export default function LoginScreen() {
             return;
         }
 
+        if (!selectedInstitution) {
+            Alert.alert(t('common.error'), t('auth.institutionRequired'));
+            return;
+        }
+
         if (!isLogin && !name) {
             Alert.alert(t('common.error'), t('auth.enterName'));
             return;
@@ -49,7 +85,7 @@ export default function LoginScreen() {
         setLoading(true);
         try {
             if (isLogin) {
-                await login(email, password);
+                await login(email, password, selectedInstitution._id);
 
                 if (rememberMe) {
                     await LocalStorage.storeData('saved_email', email);
@@ -59,10 +95,15 @@ export default function LoginScreen() {
                     await LocalStorage.removeData('saved_password');
                 }
             } else {
-                await signup(email, password, name);
+                await signup(email, password, name, selectedInstitution._id);
             }
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.message || t('auth.authFailed'));
+            // Check if error is institution mismatch
+            if (error.message && error.message.includes('Institution mismatch')) {
+                Alert.alert(t('common.error'), t('auth.institutionMismatch'));
+            } else {
+                Alert.alert(t('common.error'), error.message || t('auth.authFailed'));
+            }
         } finally {
             setLoading(false);
         }
@@ -92,6 +133,23 @@ export default function LoginScreen() {
                                 />
                             </View>
                         )}
+
+                        {/* Institution Picker */}
+                        <TouchableOpacity
+                            style={styles.inputContainer}
+                            onPress={() => setShowInstitutionPicker(true)}
+                            disabled={loadingInstitutions}
+                        >
+                            <Ionicons name="business-outline" size={20} color="#666" style={styles.inputIcon} />
+                            <Text style={[styles.pickerText, !selectedInstitution && styles.placeholderText]}>
+                                {loadingInstitutions
+                                    ? t('common.loading')
+                                    : selectedInstitution
+                                        ? selectedInstitution.name
+                                        : t('auth.selectInstitution')}
+                            </Text>
+                            <Ionicons name="chevron-down-outline" size={20} color="#666" />
+                        </TouchableOpacity>
 
                         <View style={styles.inputContainer}>
                             <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
@@ -150,6 +208,50 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                {/* Institution Picker Modal */}
+                <Modal
+                    visible={showInstitutionPicker}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowInstitutionPicker(false)}
+                >
+                    <TouchableOpacity
+                        style={styles.modalOverlay}
+                        activeOpacity={1}
+                        onPress={() => setShowInstitutionPicker(false)}
+                    >
+                        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+                            <Text style={styles.modalTitle}>{t('auth.institution')}</Text>
+                            <FlatList
+                                data={institutions}
+                                keyExtractor={(item) => item._id}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.institutionItem,
+                                            selectedInstitution?._id === item._id && styles.selectedInstitutionItem
+                                        ]}
+                                        onPress={() => {
+                                            setSelectedInstitution(item);
+                                            setShowInstitutionPicker(false);
+                                        }}
+                                    >
+                                        <Text style={[
+                                            styles.institutionText,
+                                            selectedInstitution?._id === item._id && styles.selectedInstitutionText
+                                        ]}>
+                                            {item.name}
+                                        </Text>
+                                        {selectedInstitution?._id === item._id && (
+                                            <Ionicons name="checkmark-circle" size={24} color="#007AFF" />
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
             </View>
         </AdaptiveContainer>
     );
@@ -256,5 +358,53 @@ const styles = StyleSheet.create({
     switchText: {
         color: '#007AFF',
         fontSize: 14,
+    },
+    pickerText: {
+        flex: 1,
+        paddingVertical: 16,
+        fontSize: 16,
+        color: '#333',
+    },
+    placeholderText: {
+        color: '#999',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 20,
+        width: '80%',
+        maxHeight: '60%',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    institutionItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+    },
+    selectedInstitutionItem: {
+        backgroundColor: '#F0F8FF',
+    },
+    institutionText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    selectedInstitutionText: {
+        color: '#007AFF',
+        fontWeight: '600',
     },
 });

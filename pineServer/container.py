@@ -3,6 +3,7 @@ Dependency Injection Container
 Manages component lifecycle and injection
 """
 
+from typing import Optional
 from interfaces import IProblemGenerator, IBatchGenerator, IProfileEvaluator
 from generators import StandardProblemGenerator, StandardBatchGenerator
 from evaluators import StandardProfileEvaluator
@@ -12,9 +13,9 @@ class ServiceContainer:
     """Container for managing dependencies"""
     
     def __init__(self):
-        self._problem_generator: IProblemGenerator | None = None
-        self._batch_generator: IBatchGenerator | None = None
-        self._profile_evaluator: IProfileEvaluator | None = None
+        self._problem_generator: Optional[IProblemGenerator] = None
+        self._batch_generator: Optional[IBatchGenerator] = None
+        self._profile_evaluator: Optional[IProfileEvaluator] = None
     
     def set_problem_generator(self, generator: IProblemGenerator):
         """Inject problem generator implementation"""
@@ -73,7 +74,7 @@ def create_default_container() -> ServiceContainer:
 
 
 # Global container instance
-_container: ServiceContainer | None = None
+_container: Optional[ServiceContainer] = None
 
 
 def get_container() -> ServiceContainer:

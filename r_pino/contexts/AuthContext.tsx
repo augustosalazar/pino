@@ -5,8 +5,8 @@ import { useRouter, useSegments } from 'expo-router';
 interface AuthContextType {
     user: AuthUser | null;
     loading: boolean;
-    login: (email: string, password: string) => Promise<void>;
-    signup: (email: string, password: string, name: string) => Promise<void>;
+    login: (email: string, password: string, institutionRef?: string) => Promise<void>;
+    signup: (email: string, password: string, name: string, institutionRef?: string) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -58,9 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const login = async (email: string, password: string) => {
+    const login = async (email: string, password: string, institutionRef?: string) => {
         try {
-            const authUser = await authService.login(email, password);
+            const authUser = await authService.login(email, password, institutionRef);
             setUser(authUser);
             // Navigation handled by useEffect
         } catch (error) {
@@ -69,9 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const signup = async (email: string, password: string, name: string) => {
+    const signup = async (email: string, password: string, name: string, institutionRef?: string) => {
         try {
-            const authUser = await authService.signup(email, password, name);
+            const authUser = await authService.signup(email, password, name, institutionRef);
             setUser(authUser);
             // Navigation handled by useEffect
         } catch (error) {

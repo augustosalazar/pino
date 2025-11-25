@@ -37,11 +37,18 @@ class ExerciseWithAnswer(Exercise):
     time_taken_ms: int
 
 
+class Institution(BaseModel):
+    """Institution/Company model"""
+    id: str = Field(..., alias="_id")
+    name: str
+
+
 class EnsureUserRequest(BaseModel):
     """Request to ensure user exists in database"""
     user_ref: str = Field(..., description="User's Roble auth ID")
     email: str = Field(..., description="User's email")
     username: Optional[str] = Field(None, description="User's display name")
+    institution_ref: Optional[str] = Field(None, description="Institution reference ID")
 
 
 class StartSessionRequest(BaseModel):
