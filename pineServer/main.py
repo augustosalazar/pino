@@ -79,8 +79,12 @@ async def ensure_user(request: EnsureUserRequest):
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to create user")
-    
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"[ERROR] Exception in ensure_user: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

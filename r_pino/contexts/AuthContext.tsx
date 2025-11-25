@@ -19,13 +19,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const segments = useSegments();
 
     useEffect(() => {
-        setUser(currentUser);
-    } catch (error) {
-        console.error('Failed to load user:', error);
-    } finally {
-        setLoading(false);
-    }
+        loadUser();
+    }, []);
 
+    useEffect(() => {
+        if (loading) return;
+
+        const currentPath = segments.join('/');
+        const isOnLogin = currentPath === 'login' || segments[0] === 'login';
+
+        console.log('[AuthContext] Navigation check:', {
+            hasUser: !!user,
+            isOnLogin,
+            currentPath,
+            segments,
+            loading
+        });
+
+        if (!user && !isOnLogin) {
+            // Redirect to login if not authenticated
+            console.log('[AuthContext] Redirecting to login');
+            router.replace({ pathname: '/login' });
+        } else if (user && isOnLogin) {
+            // Redirect to home if authenticated
+            console.log('[AuthContext] Redirecting to home');
+            router.replace({ pathname: '/' });
+        }
+    }, [user, loading, segments]);
+
+    const loadUser = async () => {
+        try {
+            const currentUser = await authService.getCurrentUser();
+            setUser(currentUser);
+        } catch (error) {
+            console.error('Failed to load user:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const login = async (email: string, password: string) => {
         try {
