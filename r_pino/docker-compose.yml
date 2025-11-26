@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Build arguments - these get baked into the JavaScript bundle
+      args:
+        # Option 1: Set values directly here
+        EXPO_PUBLIC_API_URL: https://api.yourserver.com
+        EXPO_PUBLIC_ROBLE_PROJECT_ID: your-project-id
+        EXPO_PUBLIC_ROBLE_BASE_URL: https://roble.yourserver.com
+        
+        # Option 2: Use environment variables from host
+        # EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL}
+        # EXPO_PUBLIC_ROBLE_PROJECT_ID: ${EXPO_PUBLIC_ROBLE_PROJECT_ID}
+        # EXPO_PUBLIC_ROBLE_BASE_URL: ${EXPO_PUBLIC_ROBLE_BASE_URL}
+    container_name: pino-web
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    networks:
+      - pino-network
+
+networks:
+  pino-network:
+    name: pino-network
+    driver: bridge

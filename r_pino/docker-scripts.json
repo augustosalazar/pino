@@ -1,0 +1,12 @@
+{
+    "scripts": {
+        "docker:build": "docker build -t pino-web .",
+        "docker:run": "docker run -d -p 3000:80 --name pino-web pino-web",
+        "docker:stop": "docker stop pino-web && docker rm pino-web",
+        "docker:logs": "docker logs -f pino-web",
+        "docker:compose:up": "docker-compose up -d",
+        "docker:compose:down": "docker-compose down",
+        "docker:compose:logs": "docker-compose logs -f",
+        "docker:compose:rebuild": "docker-compose up -d --build"
+    }
+}
