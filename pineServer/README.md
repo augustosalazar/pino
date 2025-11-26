@@ -12,6 +12,15 @@ FastAPI server for generating adaptive math exercises and tracking user progress
 
 ## Setup
 
+
+### on Docker
+```bash
+docker build --tag pineserveri  .
+```
+
+```bash
+ docker run -d -it -p 5050:8000 --env-file .env --restart unless-stopped --name pineserver pineserveri
+```
 ### 1. Install Dependencies
 
 ```bash
