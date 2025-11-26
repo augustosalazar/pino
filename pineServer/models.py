@@ -51,6 +51,20 @@ class EnsureUserRequest(BaseModel):
     institution_ref: Optional[str] = Field(None, description="Institution reference ID")
 
 
+class UpdateProfileRequest(BaseModel):
+    """Request to update user profile"""
+    age: Optional[int] = Field(None, description="User's age", ge=1, le=120)
+    grade: Optional[str] = Field(None, description="User's grade/year")
+
+
+class InstitutionStatsRequest(BaseModel):
+    """Request to get institution statistics with filters"""
+    institution_ref: str = Field(..., description="Institution reference ID")
+    age_min: Optional[int] = Field(None, description="Minimum age filter")
+    age_max: Optional[int] = Field(None, description="Maximum age filter")
+    grade: Optional[str] = Field(None, description="Grade filter")
+
+
 class StartSessionRequest(BaseModel):
     """Request to start a new session"""
     user_ref: str = Field(..., description="User's Roble auth ID")
