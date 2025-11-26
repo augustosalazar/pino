@@ -120,4 +120,48 @@ export class PineServerAPI {
 
         return await response.json();
     }
+
+    /**
+     * Update user profile (age, grade)
+     */
+    static async updateProfile(userRef: string, age?: number, grade?: string): Promise<any> {
+        const response = await fetch(`${config.api.baseUrl}/users/${userRef}/profile`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ age, grade }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to update profile: ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
+
+    /**
+     * Get institution statistics with filters (for admin users)
+     */
+    static async getInstitutionStats(
+        institutionRef: string,
+        filters: { age_min?: number; age_max?: number; grade?: string }
+    ): Promise<any> {
+        const response = await fetch(`${config.api.baseUrl}/institutions/${institutionRef}/stats`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                institution_ref: institutionRef,
+                ...filters
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to get institution stats: ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
 }

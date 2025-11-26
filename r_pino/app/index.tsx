@@ -94,7 +94,7 @@ export default function HomeScreen() {
                             </View>
                             <View>
                                 <Text style={styles.appName}>Pino</Text>
-                                <Text style={styles.appTagline}>Math Training</Text>
+                                <Text style={styles.appTagline}>{user?.institution_name || 'Math Training'}</Text>
                             </View>
                         </View>
 
@@ -157,13 +157,43 @@ export default function HomeScreen() {
 
                     {/* Action Buttons */}
                     <View style={[styles.buttonContainer, isDesktop && styles.buttonContainerDesktop]}>
-                        <TouchableOpacity style={[styles.primaryButton, isDesktop && styles.buttonDesktop]} onPress={handleStartSession}>
-                            <Text style={styles.primaryButtonText}>Start New Session</Text>
-                        </TouchableOpacity>
+                        {user?.user_type === 2 ? (
+                            // Admin user - show institution stats button
+                            <>
+                                <TouchableOpacity
+                                    style={[styles.primaryButton, isDesktop && styles.buttonDesktop]}
+                                    onPress={() => router.push('/admin-stats')}
+                                >
+                                    <Ionicons name="stats-chart" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={styles.primaryButtonText}>Institution Statistics</Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            // Student user - show game buttons
+                            <>
+                                <TouchableOpacity
+                                    style={[styles.primaryButton, isDesktop && styles.buttonDesktop]}
+                                    onPress={handleStartSession}
+                                >
+                                    <Text style={styles.primaryButtonText}>Start New Session</Text>
+                                </TouchableOpacity>
 
-                        <TouchableOpacity style={[styles.secondaryButton, isDesktop && styles.buttonDesktop]} onPress={handleViewStats}>
-                            <Text style={styles.secondaryButtonText}>View Statistics</Text>
-                        </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.secondaryButton, isDesktop && styles.buttonDesktop]}
+                                    onPress={handleViewStats}
+                                >
+                                    <Text style={styles.secondaryButtonText}>View Statistics</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.tertiaryButton, isDesktop && styles.buttonDesktop]}
+                                    onPress={() => router.push('/profile')}
+                                >
+                                    <Ionicons name="person-outline" size={20} color="#007AFF" style={{ marginRight: 8 }} />
+                                    <Text style={styles.tertiaryButtonText}>Edit Profile</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
                     </View>
                 </View>
             </ScrollView>
@@ -341,6 +371,8 @@ const styles = StyleSheet.create({
         padding: 18,
         alignItems: 'center',
         marginBottom: 12,
+        flexDirection: 'row',
+        justifyContent: 'center',
     },
     primaryButtonText: {
         color: 'white',
@@ -354,10 +386,26 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 2,
         borderColor: '#007AFF',
+        marginBottom: 12,
     },
     secondaryButtonText: {
         color: '#007AFF',
         fontSize: 18,
+        fontWeight: '600',
+    },
+    tertiaryButton: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 18,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        flexDirection: 'row',
+        justifyContent: 'center',
+    },
+    tertiaryButtonText: {
+        color: '#007AFF',
+        fontSize: 16,
         fontWeight: '600',
     },
     errorText: {

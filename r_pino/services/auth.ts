@@ -8,6 +8,11 @@ export interface AuthUser {
     name: string;
     accessToken: string;
     refreshToken: string;
+    user_type?: number;  // 1 = student, 2 = admin
+    age?: number;
+    grade?: string;
+    institution_ref?: string;
+    institution_name?: string;
 }
 
 export class AuthService {
@@ -48,12 +53,31 @@ export class AuthService {
                     await LocalStorage.storeData('institutionRef', institutionRef);
                 }
 
+                // Fetch institution name
+                let institutionName: string | undefined;
+                if (pineUser.institution_ref) {
+                    try {
+                        const institutions = await PineServerAPI.getInstitutions();
+                        const userInst = institutions.find((i: any) => i._id === pineUser.institution_ref);
+                        if (userInst) {
+                            institutionName = userInst.name;
+                        }
+                    } catch (e) {
+                        console.warn('Failed to fetch institution name', e);
+                    }
+                }
+
                 const user: AuthUser = {
                     id: userId,
                     email: email,
                     name: pineUser.username || email.split('@')[0],
                     accessToken,
-                    refreshToken
+                    refreshToken,
+                    user_type: pineUser.user_type || 1,
+                    age: pineUser.age,
+                    grade: pineUser.grade,
+                    institution_ref: pineUser.institution_ref,
+                    institution_name: institutionName
                 };
 
                 console.log('Auth login success', user);
