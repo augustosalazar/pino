@@ -5,7 +5,7 @@ Math exercise generation and tracking API
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict
+from typing import Dict, Optional
 import json
 import uuid
 from datetime import datetime
@@ -14,7 +14,9 @@ from models import (
     StartSessionRequest, StartSessionResponse,
     CompleteSessionRequest, CompleteSessionResponse,
     UserProfile, UserStats, Operator, EnsureUserRequest,
-    Institution, UpdateProfileRequest, InstitutionStatsRequest
+    Institution, UpdateProfileRequest, InstitutionStatsRequest,
+    UserAnalyticsResponse, CohortAnalyticsResponse, ModelPerformanceResponse,
+    DifficultyChange, OperatorAnalytics, CohortStats
 )
 from roble_client import roble_client
 from container import get_container
@@ -33,6 +35,90 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def determine_model_for_user(user_ref: str) -> str:
+    """
+    Determine which model to assign to a user based on model assignments.
+    Priority order:
+    1. Highest priority assignment that matches user criteria
+    2. Falls back to 'basicModel' if no matches
+    
+    Args:
+        user_ref: User's reference ID
+        
+    Returns:
+        model_ref: Model ID to use for this user
+    """
+    try:
+        # Get user data
+        users = roble_client.read_table("pine_users", {"user_ref": user_ref})
+        if not users:
+            print(f"[WARNING] User {user_ref} not found, using basicModel")
+            return "basicModel"
+        
+        user = users[0]
+        user_age = user.get("age")
+        user_grade = user.get("grade")
+        user_institution = user.get("institution_ref")
+        
+        # Get all model assignments, ordered by priority (desc)
+        assignments = roble_client.read_table("pine_model_assignments", {})
+        
+        if not assignments:
+            print("[DEBUG] No model assignments found, using basicModel")
+            return "basicModel"
+        
+        # Sort by priority (highest first)
+        assignments.sort(key=lambda x: x.get("priority", 0), reverse=True)
+        
+        # Find first matching assignment
+        for assignment in assignments:
+            assignment_type = assignment.get("assignment_type")
+            
+            # Check if assignment matches user
+            matches = True
+            
+            # Check institution filter
+            if assignment.get("institution_ref"):
+                if assignment["institution_ref"] != user_institution:
+                    matches = False
+                    continue
+            
+            # Check grade filter
+            if assignment.get("grade"):
+                if assignment["grade"] != user_grade:
+                    matches = False
+                    continue
+            
+            # Check age range filter
+            age_min = assignment.get("age_min")
+            age_max = assignment.get("age_max")
+            if age_min is not None or age_max is not None:
+                if user_age is None:
+                    matches = False
+                    continue
+                if age_min is not None and user_age < age_min:
+                    matches = False
+                    continue
+                if age_max is not None and user_age > age_max:
+                    matches = False
+                    continue
+            
+            # If all filters match, use this model
+            if matches:
+                model_ref = assignment.get("model_ref", "basicModel")
+                print(f"[DEBUG] User {user_ref} matched assignment type '{assignment_type}' with model '{model_ref}'")
+                return model_ref
+        
+        # No matches found, use default
+        print(f"[DEBUG] No matching assignments for user {user_ref}, using basicModel")
+        return "basicModel"
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to determine model for user {user_ref}: {e}")
+        # Fallback to basicModel on error
+        return "basicModel"
 
 
 @app.get("/")
@@ -171,9 +257,14 @@ async def start_session(request: StartSessionRequest):
         )
         print(f"[DEBUG] Generated {len(exercises)} exercises")
         
+        # Determine which model to use for this user
+        model_ref = determine_model_for_user(request.user_ref)
+        print(f"[DEBUG] Using model: {model_ref}")
+        
         # Create session record
         session_data = {
             "user_ref": request.user_ref,
+            "model_ref": model_ref,  # NOW POPULATED!
             "total_exercises": len(exercises),
             "correct_answers": 0,
             "avg_difficulty": sum(e.difficulty_level for e in exercises) / len(exercises),
@@ -539,6 +630,270 @@ async def get_institution_stats(institution_ref: str, filters: InstitutionStatsR
         raise
     except Exception as e:
         print(f"[ERROR] Exception in get_institution_stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== ANALYTICS ENDPOINTS ====================
+
+@app.get("/api/analytics/user/{user_ref}", response_model=UserAnalyticsResponse)
+async def get_user_analytics(
+    user_ref: str,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
+):
+    """Get detailed analytics for a specific user"""
+    try:
+        users = roble_client.read_table("pine_users", {"user_ref": user_ref})
+        if not users:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user = users[0]
+        sessions = roble_client.read_table("pine_exercise_sessions", {"user_ref": user_ref})
+        exercises = roble_client.read_table("pine_exercises", {"user_ref": user_ref})
+        profiles = roble_client.read_table("pine_user_difficulty_profile", {"user_ref": user_ref})
+        adjustments = roble_client.read_table("pine_difficulty_adjustments", {"user_ref": user_ref})
+        
+        total_correct = sum(1 for e in exercises if e.get('is_correct'))
+        overall_accuracy = (total_correct / len(exercises) * 100) if exercises else 0
+        
+        operator_analytics = {}
+        for operator in ['+', '-', '*', '/']:
+            profile = next((p for p in profiles if p.get('operator') == operator), None)
+            op_adjustments = [adj for adj in adjustments if adj.get('operator') == operator]
+            
+            difficulty_history = [
+                DifficultyChange(
+                    timestamp=adj.get('created_at', ''),
+                    operator=adj.get('operator'),
+                    previous_difficulty=float(adj.get('previous_difficulty', 0)),
+                    new_difficulty=float(adj.get('new_difficulty', 0)),
+                    reason=adj.get('reason', ''),
+                    session_ref=adj.get('session_ref', '')
+                )
+                for adj in sorted(op_adjustments, key=lambda x: x.get('created_at', ''))
+            ]
+            
+            if profile:
+                operator_analytics[operator] = OperatorAnalytics(
+                    operator=operator,
+                    current_difficulty=float(profile.get('current_difficulty', 1.0)),
+                    difficulty_history=difficulty_history,
+                    total_attempts=profile.get('total_attempts', 0),
+                    total_correct=profile.get('total_correct', 0),
+                    success_rate=float(profile.get('success_rate', 0))
+                )
+        
+        sessions_summary = [
+            {
+                "session_id": s.get('_id'),
+                "created_at": s.get('created_at', ''),
+                "model_ref": s.get('model_ref', ''),
+                "total_exercises": s.get('total_exercises', 0),
+                "correct_answers": s.get('correct_answers', 0),
+                "score_earned": s.get('score_earned', 0),
+                "avg_difficulty": s.get('avg_difficulty', 0),
+                "total_time_ms": s.get('total_time_ms', 0)
+            }
+            for s in sorted(sessions, key=lambda x: x.get('created_at', ''), reverse=True)
+        ]
+        
+        return UserAnalyticsResponse(
+            user_ref=user_ref,
+            age=user.get('age'),
+            grade=user.get('grade'),
+            institution_ref=user.get('institution_ref'),
+            total_sessions=len(sessions),
+            total_exercises=len(exercises),
+            overall_accuracy=round(overall_accuracy, 2),
+            current_score=user.get('current_score', 0),
+            operator_analytics=operator_analytics,
+            sessions_summary=sessions_summary
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] get_user_analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/cohort", response_model=CohortAnalyticsResponse)
+async def get_cohort_analytics(
+    age_group: Optional[str] = None,
+    grade: Optional[str] = None,
+    institution_ref: Optional[str] = None,
+    model_ref: Optional[str] = None
+):
+    """Get analytics for a cohort of users"""
+    try:
+        user_filters = {}
+        if grade:
+            user_filters['grade'] = grade
+        if institution_ref:
+            user_filters['institution_ref'] = institution_ref
+        
+        all_users = roble_client.read_table("pine_users", user_filters)
+        
+        if age_group and '-' in age_group:
+            age_min, age_max = map(int, age_group.split('-'))
+            all_users = [u for u in all_users if u.get('age') and age_min <= u.get('age') <= age_max]
+        
+        if not all_users:
+            raise HTTPException(status_code=404, detail="No users found")
+        
+        user_refs = [u['user_ref'] for u in all_users]
+        
+        all_sessions = []
+        all_exercises = []
+        all_profiles = []
+        
+        for user_ref in user_refs:
+            sessions = roble_client.read_table("pine_exercise_sessions", {"user_ref": user_ref})
+            if model_ref:
+                sessions = [s for s in sessions if s.get('model_ref') == model_ref]
+            all_sessions.extend(sessions)
+            
+            all_exercises.extend(roble_client.read_table("pine_exercises", {"user_ref": user_ref}))
+            all_profiles.extend(roble_client.read_table("pine_user_difficulty_profile", {"user_ref": user_ref}))
+        
+        total_correct = sum(1 for e in all_exercises if e.get('is_correct'))
+        overall_success_rate = (total_correct / len(all_exercises)) if all_exercises else 0
+        avg_session_score = sum(s.get('score_earned', 0) for s in all_sessions) / len(all_sessions) if all_sessions else 0
+        
+        difficulty_stats = {}
+        for operator in ['+', '-', '*', '/']:
+            op_profiles = [p for p in all_profiles if p.get('operator') == operator]
+            if op_profiles:
+                difficulties = [float(p.get('current_difficulty', 1.0)) for p in op_profiles]
+                success_rates = [float(p.get('success_rate', 0)) for p in op_profiles]
+                
+                avg_diff = sum(difficulties) / len(difficulties)
+                variance = sum((d - avg_diff) ** 2 for d in difficulties) / len(difficulties)
+                
+                difficulty_stats[operator] = CohortStats(
+                    operator=operator,
+                    avg_difficulty=round(avg_diff, 2),
+                    min_difficulty=round(min(difficulties), 2),
+                    max_difficulty=round(max(difficulties), 2),
+                    stddev=round(variance ** 0.5, 2),
+                    avg_success_rate=round(sum(success_rates) / len(success_rates) * 100, 2)
+                )
+        
+        desc_parts = [f"Ages {age_group}" if age_group else None,
+                      f"Grade {grade}" if grade else None,
+                      f"Institution {institution_ref}" if institution_ref else None,
+                      f"Model {model_ref}" if model_ref else None]
+        cohort_description = ", ".join([p for p in desc_parts if p]) or "All users"
+        
+        return CohortAnalyticsResponse(
+            cohort_description=cohort_description,
+            user_count=len(user_refs),
+            age_group=age_group,
+            grade=grade,
+            institution_ref=institution_ref,
+            model_ref=model_ref,
+            difficulty_stats=difficulty_stats,
+            overall_success_rate=round(overall_success_rate * 100, 2),
+            avg_session_score=round(avg_session_score, 2),
+            total_sessions=len(all_sessions)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] get_cohort_analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analytics/model/{model_ref}", response_model=ModelPerformanceResponse)
+async def get_model_performance(model_ref: str):
+    """Get performance metrics for a specific model"""
+    try:
+        all_sessions = roble_client.read_table("pine_exercise_sessions", {"model_ref": model_ref})
+        
+        if not all_sessions:
+            return ModelPerformanceResponse(
+                model_ref=model_ref, total_users=0, total_sessions=0,
+                total_exercises=0, avg_success_rate=0,
+                difficulty_distribution={}, sessions_over_time=[]
+            )
+        
+        user_refs = list(set(s['user_ref'] for s in all_sessions))
+        session_ids = [s['_id'] for s in all_sessions]
+        
+        all_exercises = []
+        for session_id in session_ids:
+            all_exercises.extend(roble_client.read_table("pine_exercises", {"session_ref": session_id}))
+        
+        total_correct = sum(1 for e in all_exercises if e.get('is_correct'))
+        avg_success_rate = (total_correct / len(all_exercises) * 100) if all_exercises else 0
+        
+        difficulty_distribution = {}
+        for operator in ['+', '-', '*', '/']:
+            op_exercises = [e for e in all_exercises if e.get('operator') == operator]
+            if op_exercises:
+                difficulties = [e.get('difficulty_level', 1.0) for e in op_exercises]
+                difficulty_distribution[operator] = {
+                    "avg": round(sum(difficulties) / len(difficulties), 2),
+                    "min": round(min(difficulties), 2),
+                    "max": round(max(difficulties), 2)
+                }
+        
+        sessions_by_date = {}
+        for session in all_sessions:
+            date = (session.get('created_at', '') or '')[:10]
+            if date:
+                sessions_by_date[date] = sessions_by_date.get(date, 0) + 1
+        
+        sessions_over_time = [{"date": d, "count": c} for d, c in sorted(sessions_by_date.items())]
+        
+        return ModelPerformanceResponse(
+            model_ref=model_ref,
+            total_users=len(user_refs),
+            total_sessions=len(all_sessions),
+            total_exercises=len(all_exercises),
+            avg_success_rate=round(avg_success_rate, 2),
+            difficulty_distribution=difficulty_distribution,
+            sessions_over_time=sessions_over_time
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] get_model_performance: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Migration/Admin endpoint
+@app.post("/api/admin/backfill-model-refs")
+async def backfill_model_refs():
+    """
+    Backfill model_ref for existing sessions that don't have it.
+    Sets all sessions without model_ref to 'basicModel'
+    """
+    try:
+        # Get all sessions
+        all_sessions = roble_client.read_table("pine_exercise_sessions", {})
+        
+        updated_count = 0
+        for session in all_sessions:
+            # If session doesn't have model_ref or it's empty
+            if not session.get('model_ref'):
+                try:
+                    roble_client.update_record(
+                        "pine_exercise_sessions",
+                        session['_id'],
+                        {"model_ref": "basicModel"}
+                    )
+                    updated_count += 1
+                except Exception as e:
+                    print(f"[WARNING] Failed to update session {session['_id']}: {e}")
+        
+        return {
+            "success": True,
+            "message": f"Updated {updated_count} sessions with basicModel",
+            "total_sessions": len(all_sessions),
+            "updated": updated_count
+        }
+    except Exception as e:
+        print(f"[ERROR] backfill_model_refs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
