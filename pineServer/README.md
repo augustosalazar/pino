@@ -12,6 +12,12 @@ FastAPI server for generating adaptive math exercises and tracking user progress
 
 ## Setup
 
+# Model performance (should work now!)
+curl http://localhost:8000/api/analytics/model/basicModel
+
+# Cohort analytics
+curl "http://localhost:8000/api/analytics/cohort?grade=10"
+
 
 ### on Docker
 ```bash
