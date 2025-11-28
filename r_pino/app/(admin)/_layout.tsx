@@ -1,8 +1,14 @@
-import { Tabs } from 'expo-router';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { withLayoutContext } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'expo-router';
+
+const { Navigator } = createMaterialTopTabNavigator();
+
+// Create a custom Expo Router layout using MaterialTopTabs
+export const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function AdminLayout() {
     const { user, logout } = useAuth();
@@ -10,7 +16,7 @@ export default function AdminLayout() {
 
     const handleLogout = async () => {
         await logout();
-        //router.replace('/auth');
+        router.replace('/auth');
     };
 
     return (
@@ -26,42 +32,42 @@ export default function AdminLayout() {
                 </TouchableOpacity>
             </View>
 
-            {/* Tabs */}
-            <Tabs
+            {/* Top Tabs */}
+            <MaterialTopTabs
                 screenOptions={{
-                    headerShown: false,
                     tabBarActiveTintColor: '#007AFF',
                     tabBarInactiveTintColor: '#8E8E93',
+                    tabBarLabelStyle: {
+                        textTransform: 'none',
+                        fontWeight: '600',
+                        fontSize: 14
+                    },
+                    tabBarIndicatorStyle: {
+                        backgroundColor: '#007AFF',
+                        height: 3
+                    },
                     tabBarStyle: {
                         backgroundColor: 'white',
-                        borderTopColor: '#E5E5EA',
-                        borderTopWidth: 1,
+                        elevation: 0,
+                        shadowOpacity: 0,
+                        borderBottomWidth: 1,
+                        borderBottomColor: '#E5E5EA',
                     },
                 }}
             >
-
-                <Tabs.Screen
+                <MaterialTopTabs.Screen
                     name="stats"
                     options={{
                         title: 'Statistics',
-                        tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-                            <Ionicons name="stats-chart" size={size} color={color} />
-                        ),
                     }}
                 />
-
-
-                <Tabs.Screen
+                <MaterialTopTabs.Screen
                     name="users"
                     options={{
                         title: 'User Progress',
-                        tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-                            <Ionicons name="people" size={size} color={color} />
-                        ),
                     }}
                 />
-
-            </Tabs>
+            </MaterialTopTabs>
         </View>
     );
 }
