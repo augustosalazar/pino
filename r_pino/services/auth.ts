@@ -186,13 +186,30 @@ export class AuthService {
                 return null;
             }
 
-            // Get user details from pine_users to ensure we have the name
+            // Get user details from pine_users
             let name = email?.split('@')[0] || 'User';
+            let pineUser: any = null;
+            let institutionName: string | undefined;
+
             try {
                 if (email) {
                     const pineUserResponse = await PineServerAPI.ensureUser(userId, email);
-                    if (pineUserResponse.user && pineUserResponse.user.username) {
-                        name = pineUserResponse.user.username;
+                    pineUser = pineUserResponse.user;
+                    if (pineUser && pineUser.username) {
+                        name = pineUser.username;
+                    }
+
+                    // Fetch institution name if ref exists
+                    if (pineUser && pineUser.institution_ref) {
+                        try {
+                            const institutions = await PineServerAPI.getInstitutions();
+                            const userInst = institutions.find((i: any) => i._id === pineUser.institution_ref);
+                            if (userInst) {
+                                institutionName = userInst.name;
+                            }
+                        } catch (e) {
+                            console.warn('Failed to fetch institution name', e);
+                        }
                     }
                 }
             } catch (e) {
@@ -204,7 +221,12 @@ export class AuthService {
                 email: email || '',
                 name: name,
                 accessToken: token,
-                refreshToken: await LocalStorage.retrieveData<string>('refreshToken') || ''
+                refreshToken: await LocalStorage.retrieveData<string>('refreshToken') || '',
+                user_type: pineUser?.user_type || 1,
+                age: pineUser?.age,
+                grade: pineUser?.grade,
+                institution_ref: pineUser?.institution_ref,
+                institution_name: institutionName
             };
         } catch (error) {
             console.error('Get current user error:', error);
