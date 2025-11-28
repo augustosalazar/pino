@@ -807,7 +807,11 @@ async def get_cohort_analytics(
 async def get_model_performance(model_ref: str):
     """Get performance metrics for a specific model"""
     try:
-        all_sessions = roble_client.read_table("pine_exercise_sessions", {"model_ref": model_ref})
+        # Get ALL sessions first (Roble doesn't support model_ref as filter)
+        all_sessions_raw = roble_client.read_table("pine_exercise_sessions", {})
+        
+        # Filter by model_ref in Python
+        all_sessions = [s for s in all_sessions_raw if s.get('model_ref') == model_ref]
         
         if not all_sessions:
             return ModelPerformanceResponse(
