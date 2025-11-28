@@ -633,6 +633,43 @@ async def get_institution_stats(institution_ref: str, filters: InstitutionStatsR
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/institutions/{institution_ref}/users")
+async def get_institution_users(institution_ref: str):
+    """
+    Get all users for a specific institution.
+    Used by admin interface to populate user selector dropdown.
+    """
+    try:
+        print(f"[DEBUG] Getting users for institution: {institution_ref}")
+        
+        # Get all users for this institution
+        users = roble_client.read_table("pine_users", {"institution_ref": institution_ref})
+        
+        # Return user list with basic info
+        user_list = [
+            {
+                "user_ref": u.get("user_ref"),
+                "username": u.get("username"),
+                "email": u.get("email"),
+                "age": u.get("age"),
+                "grade": u.get("grade"),
+                "current_score": u.get("current_score", 0)
+            }
+            for u in users
+        ]
+        
+        print(f"[DEBUG] Found {len(user_list)} users for institution {institution_ref}")
+        return user_list
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Exception in get_institution_users: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== ANALYTICS ENDPOINTS ====================
 
 @app.get("/api/analytics/user/{user_ref}", response_model=UserAnalyticsResponse)

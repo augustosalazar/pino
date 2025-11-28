@@ -164,4 +164,74 @@ export class PineServerAPI {
 
         return await response.json();
     }
+
+    /**
+     * ANALYTICS ENDPOINTS
+     */
+
+    /**
+     * Get detailed analytics for a specific user
+     */
+    static async getUserAnalytics(userRef: string): Promise<any> {
+        const response = await fetch(`${config.api.baseUrl}/analytics/user/${userRef}`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to get user analytics: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    }
+
+    /**
+     * Get cohort analytics (by age, grade, institution, or model)
+     */
+    static async getCohortAnalytics(filters: {
+        age_group?: string;
+        grade?: string | number;
+        institution_ref?: string;
+        model_ref?: string;
+    }): Promise<any> {
+        const params = new URLSearchParams();
+        if (filters.age_group) params.append('age_group', filters.age_group);
+        if (filters.grade !== undefined) params.append('grade', String(filters.grade));
+        if (filters.institution_ref) params.append('institution_ref', filters.institution_ref);
+        if (filters.model_ref) params.append('model_ref', filters.model_ref);
+
+        const response = await fetch(
+            `${config.api.baseUrl}/analytics/cohort?${params.toString()}`
+        );
+        
+        if (!response.ok) {
+            throw new Error(`Failed to get cohort analytics: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    }
+
+    /**
+     * Get model performance metrics
+     */
+    static async getModelPerformance(modelRef: string): Promise<any> {
+        const response = await fetch(`${config.api.baseUrl}/analytics/model/${modelRef}`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to get model performance: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    }
+
+    /**
+     * Get list of all users (for admin user selection)
+     */
+    static async getAllInstitutionUsers(institutionRef: string): Promise<any[]> {
+        // Note: This endpoint needs to be created on backend
+        const response = await fetch(`${config.api.baseUrl}/institutions/${institutionRef}/users`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to get users: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    }
 }

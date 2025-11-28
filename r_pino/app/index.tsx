@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { PineServerAPI } from '../services/api';
 import { StatsResponse } from '../services/types';
@@ -58,8 +58,12 @@ export default function HomeScreen() {
 
     const handleLogout = async () => {
         await logout();
-        // Router will automatically redirect to login via AuthContext
     };
+
+    // Redirect admin users directly to admin tabs
+    if (!loading && user?.user_type === 2) {
+        return <Redirect href="/(admin)/stats" />;
+    }
 
     if (loading && !stats) {
         return (
@@ -157,43 +161,27 @@ export default function HomeScreen() {
 
                     {/* Action Buttons */}
                     <View style={[styles.buttonContainer, isDesktop && styles.buttonContainerDesktop]}>
-                        {user?.user_type === 2 ? (
-                            // Admin user - show institution stats button
-                            <>
-                                <TouchableOpacity
-                                    style={[styles.primaryButton, isDesktop && styles.buttonDesktop]}
-                                    onPress={() => router.push('/admin-stats')}
-                                >
-                                    <Ionicons name="stats-chart" size={20} color="white" style={{ marginRight: 8 }} />
-                                    <Text style={styles.primaryButtonText}>Institution Statistics</Text>
-                                </TouchableOpacity>
-                            </>
-                        ) : (
-                            // Student user - show game buttons
-                            <>
-                                <TouchableOpacity
-                                    style={[styles.primaryButton, isDesktop && styles.buttonDesktop]}
-                                    onPress={handleStartSession}
-                                >
-                                    <Text style={styles.primaryButtonText}>Start New Session</Text>
-                                </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.primaryButton, isDesktop && styles.buttonDesktop]}
+                            onPress={handleStartSession}
+                        >
+                            <Text style={styles.primaryButtonText}>Start New Session</Text>
+                        </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    style={[styles.secondaryButton, isDesktop && styles.buttonDesktop]}
-                                    onPress={handleViewStats}
-                                >
-                                    <Text style={styles.secondaryButtonText}>View Statistics</Text>
-                                </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.secondaryButton, isDesktop && styles.buttonDesktop]}
+                            onPress={handleViewStats}
+                        >
+                            <Text style={styles.secondaryButtonText}>View Statistics</Text>
+                        </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    style={[styles.tertiaryButton, isDesktop && styles.buttonDesktop]}
-                                    onPress={() => router.push('/profile')}
-                                >
-                                    <Ionicons name="person-outline" size={20} color="#007AFF" style={{ marginRight: 8 }} />
-                                    <Text style={styles.tertiaryButtonText}>Edit Profile</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
+                        <TouchableOpacity
+                            style={[styles.tertiaryButton, isDesktop && styles.buttonDesktop]}
+                            onPress={() => router.push('/profile')}
+                        >
+                            <Ionicons name="person-outline" size={20} color="#007AFF" style={{ marginRight: 8 }} />
+                            <Text style={styles.tertiaryButtonText}>Edit Profile</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </ScrollView>
@@ -448,9 +436,84 @@ const styles = StyleSheet.create({
     buttonContainerDesktop: {
         flexDirection: 'row',
         gap: 16,
+        maxWidth: 800,
     },
     buttonDesktop: {
         flex: 1,
-        marginBottom: 0,
+        minWidth: 200,
+    },
+    // Admin Dashboard Styles
+    adminDashboard: {
+        flex: 1,
+        padding: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    adminWelcome: {
+        alignItems: 'center',
+        marginBottom: 32,
+        paddingHorizontal: 20,
+    },
+    adminTitle: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#000',
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    adminSubtitle: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        maxWidth: 400,
+    },
+    adminMainButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#007AFF',
+        paddingVertical: 18,
+        paddingHorizontal: 32,
+        borderRadius: 16,
+        gap: 12,
+        width: '100%',
+        maxWidth: 400,
+        marginBottom: 12,
+        shadowColor: '#007AFF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    adminMainButtonText: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: '600',
+        flex: 1,
+        textAlign: 'center',
+    },
+    adminSecondaryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'white',
+        paddingVertical: 16,
+        paddingHorizontal: 28,
+        borderRadius: 12,
+        gap: 8,
+        width: '100%',
+        maxWidth: 400,
+        borderWidth: 2,
+        borderColor: '#007AFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    adminSecondaryButtonText: {
+        color: '#007AFF',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

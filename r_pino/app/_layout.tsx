@@ -11,6 +11,7 @@ export default function RootLayout() {
                 <Stack.Screen name="session" options={{ title: 'Exercise Session', headerShown: false }} />
                 <Stack.Screen name="results" options={{ title: 'Results', presentation: 'modal' }} />
                 <Stack.Screen name="stats" options={{ title: 'Statistics' }} />
+                <Stack.Screen name="(admin)" options={{ headerShown: false }} />
             </Stack>
         </AuthProvider>
     );
