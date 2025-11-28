@@ -269,7 +269,8 @@ async def start_session(request: StartSessionRequest):
             "correct_answers": 0,
             "avg_difficulty": sum(e.difficulty_level for e in exercises) / len(exercises),
             "total_time_ms": 0,
-            "score_earned": 0
+            "score_earned": 0,
+            "started_at": datetime.utcnow().isoformat()
         }
         
         print(f"[DEBUG] Creating session record")
@@ -359,7 +360,8 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
             roble_client.update_record("pine_exercise_sessions", session_id, {
                 "correct_answers": correct_answers,
                 "total_time_ms": total_time,
-                "score_earned": score_earned
+                "score_earned": score_earned,
+                "completed_at": datetime.utcnow().isoformat()
             })
             print(f"[DEBUG] Updated session record")
         except Exception as e:
@@ -724,6 +726,8 @@ async def get_user_analytics(
             {
                 "session_id": s.get('_id'),
                 "created_at": s.get('created_at', ''),
+                "started_at": s.get('started_at'),
+                "completed_at": s.get('completed_at'),
                 "model_ref": s.get('model_ref', ''),
                 "total_exercises": s.get('total_exercises', 0),
                 "correct_answers": s.get('correct_answers', 0),

@@ -171,6 +171,11 @@ export default function InstitutionAdminScreen() {
                                         Score: {session.score_earned}
                                     </Text>
                                 </View>
+                                {session.started_at && session.completed_at && (
+                                    <Text style={styles.sessionDuration}>
+                                        Duration: {Math.round((new Date(session.completed_at).getTime() - new Date(session.started_at).getTime()) / 1000 / 60)} min
+                                    </Text>
+                                )}
                             </View>
                         ))}
                     </View>
@@ -425,6 +430,12 @@ const styles = StyleSheet.create({
     sessionStat: {
         fontSize: 14,
         color: '#8E8E93',
+    },
+    sessionDuration: {
+        fontSize: 12,
+        color: '#8E8E93',
+        marginTop: 8,
+        fontStyle: 'italic',
     },
     emptyState: {
         flex: 1,

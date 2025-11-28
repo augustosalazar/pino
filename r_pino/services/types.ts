@@ -81,6 +81,8 @@ export interface OperatorAnalytics {
 export interface SessionSummary {
     session_id: string;
     created_at: string;
+    started_at?: string;
+    completed_at?: string;
     model_ref: string;
     total_exercises: number;
     correct_answers: number;
