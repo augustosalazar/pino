@@ -269,12 +269,12 @@ async def start_session(request: StartSessionRequest):
             "correct_answers": 0,
             "avg_difficulty": sum(e.difficulty_level for e in exercises) / len(exercises),
             "total_time_ms": 0,
-            "score_earned": 0,
-            "started_at": datetime.utcnow().isoformat()
+            "score_earned": 0
         }
         
         print(f"[DEBUG] Creating session record")
         result = roble_client.insert_records("pine_exercise_sessions", [session_data])
+        print(f"[DEBUG] Insert result: {result}")
         
         if not result.get("inserted"):
             print(f"[ERROR] Failed to create session - no inserted records returned")
@@ -282,6 +282,14 @@ async def start_session(request: StartSessionRequest):
         
         session_id = result["inserted"][0]["_id"]
         print(f"[DEBUG] Session created with ID: {session_id}")
+
+        # Update with started_at (done separately to avoid potential insert schema issues)
+        try:
+            roble_client.update_record("pine_exercise_sessions", session_id, {
+                "started_at": datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            print(f"[WARN] Failed to set started_at: {e}")
         
         return StartSessionResponse(
             session_id=session_id,
