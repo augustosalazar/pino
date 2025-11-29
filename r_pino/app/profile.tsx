@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView 
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { PineServerAPI } from '../services/api';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 export default function ProfileScreen() {
     const router = useRouter();
     const { user } = useAuth();
+    const { theme } = useTheme();
     const [age, setAge] = useState(user?.age?.toString() || '');
     const [grade, setGrade] = useState(user?.grade || '');
     const [loading, setLoading] = useState(false);
@@ -33,54 +35,54 @@ export default function ProfileScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+            <StatusBar style={theme.statusBarStyle} />
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#007AFF" />
+                        <Ionicons name="arrow-back" size={24} color={theme.primary} />
                     </TouchableOpacity>
-                    <Text style={styles.title}>Edit Profile</Text>
+                    <Text style={[styles.title, { color: theme.text }]}>Edit Profile</Text>
                     <View style={{ width: 24 }} />
                 </View>
 
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
                     <View style={styles.userInfo}>
-                        <Ionicons name="person-circle" size={80} color="#007AFF" />
-                        <Text style={styles.userName}>{user?.name}</Text>
-                        <Text style={styles.userEmail}>{user?.email}</Text>
+                        <Ionicons name="person-circle" size={80} color={theme.primary} />
+                        <Text style={[styles.userName, { color: theme.text }]}>{user?.name}</Text>
+                        <Text style={[styles.userEmail, { color: theme.textSecondary }]}>{user?.email}</Text>
                     </View>
 
                     <View style={styles.formSection}>
-                        <Text style={styles.sectionTitle}>Personal Information</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Personal Information</Text>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Age</Text>
+                            <Text style={[styles.label, { color: theme.textSecondary }]}>Age</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border, color: theme.text }]}
                                 value={age}
                                 onChangeText={setAge}
                                 keyboardType="numeric"
                                 placeholder="Enter your age"
-                                placeholderTextColor="#999"
+                                placeholderTextColor={theme.textTertiary}
                             />
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Grade/Year</Text>
+                            <Text style={[styles.label, { color: theme.textSecondary }]}>Grade/Year</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border, color: theme.text }]}
                                 value={grade}
                                 onChangeText={setGrade}
                                 placeholder="e.g., 9th Grade, Year 10"
-                                placeholderTextColor="#999"
+                                placeholderTextColor={theme.textTertiary}
                             />
                         </View>
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+                        style={[styles.saveButton, { backgroundColor: theme.primary }, loading && styles.saveButtonDisabled]}
                         onPress={handleSave}
                         disabled={loading}
                     >
@@ -98,7 +100,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F7',
     },
     content: {
         padding: 20,
@@ -116,10 +117,8 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#333',
     },
     card: {
-        backgroundColor: 'white',
         borderRadius: 16,
         padding: 24,
         shadowColor: '#000',
@@ -138,12 +137,10 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#333',
         marginTop: 12,
     },
     userEmail: {
         fontSize: 14,
-        color: '#666',
         marginTop: 4,
     },
     formSection: {
@@ -152,7 +149,6 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#333',
         marginBottom: 16,
     },
     inputGroup: {
@@ -161,20 +157,15 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#666',
         marginBottom: 8,
     },
     input: {
-        backgroundColor: '#F5F5F7',
         borderRadius: 12,
         padding: 16,
         fontSize: 16,
-        color: '#333',
         borderWidth: 1,
-        borderColor: '#E0E0E0',
     },
     saveButton: {
-        backgroundColor: '#007AFF',
         borderRadius: 12,
         padding: 18,
         flexDirection: 'row',

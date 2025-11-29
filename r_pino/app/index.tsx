@@ -5,6 +5,7 @@ import { PineServerAPI } from '../services/api';
 import { StatsResponse } from '../services/types';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { AdaptiveContainer } from '../components/AdaptiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 export default function HomeScreen() {
     const router = useRouter();
     const { user, logout } = useAuth();
+    const { theme, isDark } = useTheme();
     const { isTabletOrDesktop, isDesktop } = useResponsive();
     const [stats, setStats] = useState<StatsResponse | null>(null);
     const [loading, setLoading] = useState(true);
@@ -67,17 +69,17 @@ export default function HomeScreen() {
 
     if (loading && !stats) {
         return (
-            <View style={styles.container}>
-                <ActivityIndicator size="large" color="#007AFF" />
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
 
     if (error) {
         return (
-            <View style={styles.container}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={loadUserStats}>
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
+                <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+                <TouchableOpacity style={[styles.retryButton, { backgroundColor: theme.primary }]} onPress={loadUserStats}>
                     <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
             </View>
@@ -86,11 +88,11 @@ export default function HomeScreen() {
 
     return (
         <AdaptiveContainer centerOnDesktop={true} maxWidth={1000}>
-            <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-                <StatusBar style="light" />
+            <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.contentContainer}>
+                <StatusBar style={theme.statusBarStyle} />
 
                 {/* Modern App Bar */}
-                <View style={styles.appBar}>
+                <View style={[styles.appBar, { backgroundColor: theme.primary }]}>
                     <View style={styles.appBarContent}>
                         <View style={styles.brandContainer}>
                             <View style={styles.logoContainer}>
@@ -103,6 +105,9 @@ export default function HomeScreen() {
                         </View>
 
                         <View style={styles.userSection}>
+                            <TouchableOpacity onPress={() => router.push('/settings')} style={styles.iconButton}>
+                                <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+                            </TouchableOpacity>
                             <View style={styles.welcomeContainer}>
                                 <Ionicons name="person-circle-outline" size={20} color="#FFFFFF" />
                                 <Text style={styles.welcomeText}>Hi, {user?.name?.split(' ')[0] || 'User'}!</Text>
@@ -119,25 +124,25 @@ export default function HomeScreen() {
                     {/* Main content grid for desktop */}
                     <View style={[styles.mainContent, isDesktop && styles.mainContentDesktop]}>
                         {/* Score Card */}
-                        <View style={[styles.scoreCard, isDesktop && styles.scoreCardDesktop]}>
-                            <Text style={styles.scoreLabel}>Current Score</Text>
-                            <Text style={styles.scoreValue}>{stats?.current_score || 0}</Text>
+                        <View style={[styles.scoreCard, { backgroundColor: theme.cardBackground }, isDesktop && styles.scoreCardDesktop]}>
+                            <Text style={[styles.scoreLabel, { color: theme.textSecondary }]}>Current Score</Text>
+                            <Text style={[styles.scoreValue, { color: theme.primary }]}>{stats?.current_score || 0}</Text>
 
                             {stats && (
                                 <View style={styles.statsRow}>
                                     <View style={styles.statItem}>
-                                        <Text style={styles.statValue}>{stats.total_sessions}</Text>
-                                        <Text style={styles.statLabel}>Sessions</Text>
+                                        <Text style={[styles.statValue, { color: theme.text }]}>{stats.total_sessions}</Text>
+                                        <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Sessions</Text>
                                     </View>
-                                    <View style={styles.statDivider} />
+                                    <View style={[styles.statDivider, { backgroundColor: theme.divider }]} />
                                     <View style={styles.statItem}>
-                                        <Text style={styles.statValue}>{stats.accuracy.toFixed(1)}%</Text>
-                                        <Text style={styles.statLabel}>Accuracy</Text>
+                                        <Text style={[styles.statValue, { color: theme.text }]}>{stats.accuracy.toFixed(1)}%</Text>
+                                        <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Accuracy</Text>
                                     </View>
-                                    <View style={styles.statDivider} />
+                                    <View style={[styles.statDivider, { backgroundColor: theme.divider }]} />
                                     <View style={styles.statItem}>
-                                        <Text style={styles.statValue}>{stats.total_exercises}</Text>
-                                        <Text style={styles.statLabel}>Exercises</Text>
+                                        <Text style={[styles.statValue, { color: theme.text }]}>{stats.total_exercises}</Text>
+                                        <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Exercises</Text>
                                     </View>
                                 </View>
                             )}
@@ -145,13 +150,13 @@ export default function HomeScreen() {
 
                         {/* Difficulty Preview */}
                         {stats && (
-                            <View style={[styles.difficultyCard, isDesktop && styles.difficultyCardDesktop]}>
-                                <Text style={styles.cardTitle}>Current Difficulty</Text>
+                            <View style={[styles.difficultyCard, { backgroundColor: theme.cardBackground }, isDesktop && styles.difficultyCardDesktop]}>
+                                <Text style={[styles.cardTitle, { color: theme.text }]}>Current Difficulty</Text>
                                 <View style={styles.difficultyGrid}>
                                     {Object.entries(stats.difficulty_by_operator).map(([op, diff]) => (
                                         <View key={op} style={styles.difficultyItem}>
-                                            <Text style={styles.operatorIcon}>{op}</Text>
-                                            <Text style={styles.difficultyValue}>{diff.toFixed(1)}</Text>
+                                            <Text style={[styles.operatorIcon, { color: theme.primary }]}>{op}</Text>
+                                            <Text style={[styles.difficultyValue, { color: theme.textSecondary }]}>{diff.toFixed(1)}</Text>
                                         </View>
                                     ))}
                                 </View>
@@ -162,25 +167,25 @@ export default function HomeScreen() {
                     {/* Action Buttons */}
                     <View style={[styles.buttonContainer, isDesktop && styles.buttonContainerDesktop]}>
                         <TouchableOpacity
-                            style={[styles.primaryButton, isDesktop && styles.buttonDesktop]}
+                            style={[styles.primaryButton, { backgroundColor: theme.primary }, isDesktop && styles.buttonDesktop]}
                             onPress={handleStartSession}
                         >
                             <Text style={styles.primaryButtonText}>Start New Session</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.secondaryButton, isDesktop && styles.buttonDesktop]}
+                            style={[styles.secondaryButton, { backgroundColor: theme.cardBackground, borderColor: theme.primary }, isDesktop && styles.buttonDesktop]}
                             onPress={handleViewStats}
                         >
-                            <Text style={styles.secondaryButtonText}>View Statistics</Text>
+                            <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>View Statistics</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.tertiaryButton, isDesktop && styles.buttonDesktop]}
+                            style={[styles.tertiaryButton, { backgroundColor: theme.cardBackground, borderColor: theme.border }, isDesktop && styles.buttonDesktop]}
                             onPress={() => router.push('/profile')}
                         >
-                            <Ionicons name="person-outline" size={20} color="#007AFF" style={{ marginRight: 8 }} />
-                            <Text style={styles.tertiaryButtonText}>Edit Profile</Text>
+                            <Ionicons name="person-outline" size={20} color={theme.primary} style={{ marginRight: 8 }} />
+                            <Text style={[styles.tertiaryButtonText, { color: theme.primary }]}>Edit Profile</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -192,14 +197,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F7',
     },
     contentContainer: {
         paddingBottom: 20,
     },
     // Modern App Bar Styles
     appBar: {
-        backgroundColor: '#007AFF',
         paddingTop: 50,
         paddingBottom: 20,
         paddingHorizontal: 20,
@@ -246,6 +249,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 12,
     },
+    iconButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     welcomeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -272,7 +283,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     scoreCard: {
-        backgroundColor: 'white',
         borderRadius: 16,
         padding: 24,
         marginBottom: 16,
@@ -285,13 +295,11 @@ const styles = StyleSheet.create({
     },
     scoreLabel: {
         fontSize: 14,
-        color: '#666',
         marginBottom: 8,
     },
     scoreValue: {
         fontSize: 48,
         fontWeight: 'bold',
-        color: '#007AFF',
         marginBottom: 20,
     },
     statsRow: {
@@ -307,20 +315,16 @@ const styles = StyleSheet.create({
     statValue: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#333',
     },
     statLabel: {
         fontSize: 12,
-        color: '#999',
         marginTop: 4,
     },
     statDivider: {
         width: 1,
         height: 30,
-        backgroundColor: '#E0E0E0',
     },
     difficultyCard: {
-        backgroundColor: 'white',
         borderRadius: 16,
         padding: 20,
         marginBottom: 24,
@@ -333,7 +337,6 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#333',
         marginBottom: 16,
     },
     difficultyGrid: {
@@ -346,15 +349,12 @@ const styles = StyleSheet.create({
     operatorIcon: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#007AFF',
         marginBottom: 8,
     },
     difficultyValue: {
         fontSize: 16,
-        color: '#666',
     },
     primaryButton: {
-        backgroundColor: '#007AFF',
         borderRadius: 12,
         padding: 18,
         alignItems: 'center',
@@ -368,42 +368,34 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     secondaryButton: {
-        backgroundColor: 'white',
         borderRadius: 12,
         padding: 18,
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: '#007AFF',
         marginBottom: 12,
     },
     secondaryButtonText: {
-        color: '#007AFF',
         fontSize: 18,
         fontWeight: '600',
     },
     tertiaryButton: {
-        backgroundColor: 'white',
         borderRadius: 12,
         padding: 18,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E0E0E0',
         flexDirection: 'row',
         justifyContent: 'center',
     },
     tertiaryButtonText: {
-        color: '#007AFF',
         fontSize: 16,
         fontWeight: '600',
     },
     errorText: {
         fontSize: 16,
-        color: '#FF3B30',
         textAlign: 'center',
         marginBottom: 20,
     },
     retryButton: {
-        backgroundColor: '#007AFF',
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
