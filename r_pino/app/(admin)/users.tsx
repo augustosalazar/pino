@@ -261,7 +261,7 @@ export default function InstitutionAdminScreen() {
                                         {opAnalytics.total_correct}/{opAnalytics.total_attempts} correct
                                     </Text>
                                     <Text style={styles.statText}>
-                                        {(opAnalytics.success_rate * 100).toFixed(0)}% success rate
+                                        {(opAnalytics.success_rate).toFixed(0)}% success rate
                                     </Text>
                                 </View>
 
