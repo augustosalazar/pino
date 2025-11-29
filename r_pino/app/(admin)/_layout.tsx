@@ -16,7 +16,6 @@ export default function AdminLayout() {
 
     const handleLogout = async () => {
         await logout();
-        router.replace('/auth');
     };
 
     return (
@@ -82,7 +81,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 20,
-        paddingTop: 60,
+        paddingTop: 15,
         backgroundColor: 'white',
         borderBottomWidth: 1,
         borderBottomColor: '#E5E5EA',
