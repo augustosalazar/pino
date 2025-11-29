@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
 import { useState, useEffect } from 'react';
 import { PineServerAPI } from '../../services/api';
 import { UserAnalyticsResponse } from '../../services/types';
@@ -14,7 +14,15 @@ export default function InstitutionAdminScreen() {
     const [analytics, setAnalytics] = useState<UserAnalyticsResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState<any[]>([]);
+    const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
     const [showUserPicker, setShowUserPicker] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Filter states
+    const [ageMin, setAgeMin] = useState('');
+    const [ageMax, setAgeMax] = useState('');
+    const [selectedGrade, setSelectedGrade] = useState<string | undefined>(undefined);
+    const [availableGrades, setAvailableGrades] = useState<string[]>([]);
 
     useEffect(() => {
         if (user?.institution_ref) {
@@ -22,15 +30,50 @@ export default function InstitutionAdminScreen() {
         }
     }, [user]);
 
+    useEffect(() => {
+        applyFilters();
+    }, [users, ageMin, ageMax, selectedGrade]);
+
     const loadInstitutionUsers = async () => {
         if (!user?.institution_ref) return;
 
         try {
             const institutionUsers = await PineServerAPI.getAllInstitutionUsers(user.institution_ref);
             setUsers(institutionUsers);
+
+            // Extract unique grades
+            const grades = [...new Set(institutionUsers.map(u => u.grade).filter(g => g != null))].sort();
+            setAvailableGrades(grades.map(String));
         } catch (error) {
             console.error('Failed to load users:', error);
         }
+    };
+
+    const applyFilters = () => {
+        let filtered = [...users];
+
+        // Filter by age
+        if (ageMin) {
+            const minAge = parseInt(ageMin);
+            filtered = filtered.filter(u => u.age && u.age >= minAge);
+        }
+        if (ageMax) {
+            const maxAge = parseInt(ageMax);
+            filtered = filtered.filter(u => u.age && u.age <= maxAge);
+        }
+
+        // Filter by grade
+        if (selectedGrade) {
+            filtered = filtered.filter(u => String(u.grade) === selectedGrade);
+        }
+
+        setFilteredUsers(filtered);
+    };
+
+    const clearFilters = () => {
+        setAgeMin('');
+        setAgeMax('');
+        setSelectedGrade(undefined);
     };
 
     const loadUserAnalytics = async (userRef: string) => {
@@ -56,8 +99,92 @@ export default function InstitutionAdminScreen() {
         );
     }
 
+    const displayUsers = filteredUsers.length > 0 ? filteredUsers : users;
+
     return (
         <View style={styles.container}>
+
+            {/* Filter Toggle Button */}
+            <View style={styles.filterHeader}>
+                <Text style={styles.filterHeaderText}>
+                    {displayUsers.length} {displayUsers.length === 1 ? 'student' : 'students'}
+                </Text>
+                <TouchableOpacity
+                    style={styles.filterToggleButton}
+                    onPress={() => setShowFilters(!showFilters)}
+                >
+                    <Ionicons name="funnel" size={20} color="#007AFF" />
+                    <Text style={styles.filterToggleText}>Filters</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Filter Section */}
+            {showFilters && (
+                <View style={styles.filterCard}>
+                    <Text style={styles.filterTitle}>Filter Users</Text>
+
+                    {/* Age Filters */}
+                    <View style={styles.filterRow}>
+                        <View style={styles.filterInput}>
+                            <Text style={styles.filterLabel}>Min Age</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={ageMin}
+                                onChangeText={setAgeMin}
+                                keyboardType="numeric"
+                                placeholder="Min"
+                                placeholderTextColor="#999"
+                            />
+                        </View>
+
+                        <View style={styles.filterInput}>
+                            <Text style={styles.filterLabel}>Max Age</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={ageMax}
+                                onChangeText={setAgeMax}
+                                keyboardType="numeric"
+                                placeholder="Max"
+                                placeholderTextColor="#999"
+                            />
+                        </View>
+                    </View>
+
+                    {/* Grade Filter */}
+                    {availableGrades.length > 0 && (
+                        <View style={styles.gradesContainer}>
+                            <Text style={styles.filterLabel}>Grade</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gradeScroll}>
+                                <TouchableOpacity
+                                    style={[styles.gradeChip, !selectedGrade && styles.gradeChipSelected]}
+                                    onPress={() => setSelectedGrade(undefined)}
+                                >
+                                    <Text style={[styles.gradeChipText, !selectedGrade && styles.gradeChipTextSelected]}>
+                                        All
+                                    </Text>
+                                </TouchableOpacity>
+                                {availableGrades.map((grade) => (
+                                    <TouchableOpacity
+                                        key={grade}
+                                        style={[styles.gradeChip, selectedGrade === grade && styles.gradeChipSelected]}
+                                        onPress={() => setSelectedGrade(grade)}
+                                    >
+                                        <Text style={[styles.gradeChipText, selectedGrade === grade && styles.gradeChipTextSelected]}>
+                                            {grade}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+
+                    {/* Filter Actions */}
+                    <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
+                        <Ionicons name="close-circle" size={16} color="#666" />
+                        <Text style={styles.clearButtonText}>Clear Filters</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* User Selector */}
             <TouchableOpacity
@@ -74,7 +201,7 @@ export default function InstitutionAdminScreen() {
             {/* User Picker */}
             {showUserPicker && (
                 <ScrollView style={styles.userPicker}>
-                    {users.map((u) => (
+                    {displayUsers.map((u) => (
                         <TouchableOpacity
                             key={u.user_ref}
                             style={styles.userItem}
@@ -480,5 +607,115 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#999',
         marginTop: 16,
+    },
+    // Filter styles
+    filterHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: 'white',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E5EA',
+    },
+    filterHeaderText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000',
+    },
+    filterToggleButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        padding: 8,
+    },
+    filterToggleText: {
+        fontSize: 14,
+        color: '#007AFF',
+        fontWeight: '600',
+    },
+    filterCard: {
+        backgroundColor: 'white',
+        padding: 16,
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    filterTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000',
+        marginBottom: 16,
+    },
+    filterRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16,
+    },
+    filterInput: {
+        flex: 1,
+    },
+    filterLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#666',
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: '#F5F5F7',
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 14,
+        color: '#333',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    gradesContainer: {
+        marginBottom: 16,
+    },
+    gradeScroll: {
+        marginTop: 8,
+    },
+    gradeChip: {
+        backgroundColor: '#F5F5F7',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    gradeChipSelected: {
+        backgroundColor: '#007AFF',
+        borderColor: '#007AFF',
+    },
+    gradeChipText: {
+        fontSize: 14,
+        color: '#333',
+        fontWeight: '500',
+    },
+    gradeChipTextSelected: {
+        color: 'white',
+    },
+    clearButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F5F5F7',
+        borderRadius: 12,
+        padding: 12,
+        gap: 6,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    clearButtonText: {
+        color: '#666',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
