@@ -159,26 +159,62 @@ export default function InstitutionAdminScreen() {
                     {/* Recent Sessions */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Recent Sessions</Text>
-                        {analytics.sessions_summary.slice(0, 5).map((session) => (
-                            <View key={session.session_id} style={styles.sessionCard}>
-                                <Text style={styles.sessionDate}>
-                                    {new Date(session.created_at).toLocaleDateString()}
-                                </Text>
-                                <View style={styles.sessionStats}>
-                                    <Text style={styles.sessionStat}>
-                                        {session.correct_answers}/{session.total_exercises} correct
-                                    </Text>
-                                    <Text style={styles.sessionStat}>
-                                        Score: {session.score_earned}
-                                    </Text>
+                        {analytics.sessions_summary.slice(0, 5).map((session) => {
+                            const startDate = new Date(session.started_at || session.created_at);
+                            const endDate = new Date(session.completed_at || session.created_at);
+
+                            // Format for Colombian time (UTC-5)
+                            const colombianTime = startDate.toLocaleString('en-US', {
+                                timeZone: 'America/Bogota',
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                            });
+
+                            // Calculate duration in minutes
+                            const durationMs = endDate.getTime() - startDate.getTime();
+                            const durationMin = Math.round(durationMs / 1000 / 60);
+                            const durationSec = Math.round((durationMs / 1000) % 60);
+
+                            return (
+                                <View key={session.session_id} style={styles.sessionCard}>
+                                    <View style={styles.sessionHeader}>
+                                        <Text style={styles.sessionDate}>
+                                            {colombianTime}
+                                        </Text>
+                                        <View style={styles.durationBadge}>
+                                            <Ionicons name="time-outline" size={14} color="#007AFF" />
+                                            <Text style={styles.durationText}>
+                                                {durationMin}m {durationSec}s
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.sessionStats}>
+                                        <View style={styles.sessionStatItem}>
+                                            <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+                                            <Text style={styles.sessionStat}>
+                                                {session.correct_answers}/{session.total_exercises} correct
+                                            </Text>
+                                        </View>
+                                        <View style={styles.sessionStatItem}>
+                                            <Ionicons name="trophy" size={16} color="#FFB800" />
+                                            <Text style={styles.sessionStat}>
+                                                {session.score_earned} pts
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.sessionFooter}>
+                                        <Text style={styles.sessionModel}>Model: {session.model_ref}</Text>
+                                        <Text style={styles.sessionDifficulty}>
+                                            Avg Difficulty: {session.avg_difficulty.toFixed(1)}
+                                        </Text>
+                                    </View>
                                 </View>
-                                {session.started_at && session.completed_at && (
-                                    <Text style={styles.sessionDuration}>
-                                        Duration: {Math.round((new Date(session.completed_at).getTime() - new Date(session.started_at).getTime()) / 1000 / 60)} min
-                                    </Text>
-                                )}
-                            </View>
-                        ))}
+                            );
+                        })}
                     </View>
                 </ScrollView>
             )}
@@ -418,19 +454,66 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 2,
     },
+    sessionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E5EA',
+    },
     sessionDate: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
         color: '#000',
-        marginBottom: 8,
+        flex: 1,
+    },
+    durationBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0F8FF',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+        gap: 4,
+    },
+    durationText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#007AFF',
     },
     sessionStats: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    sessionStatItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
     },
     sessionStat: {
         fontSize: 14,
+        color: '#333',
+        fontWeight: '500',
+    },
+    sessionFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#E5E5EA',
+    },
+    sessionModel: {
+        fontSize: 12,
         color: '#8E8E93',
+        fontWeight: '500',
+    },
+    sessionDifficulty: {
+        fontSize: 12,
+        color: '#8E8E93',
+        fontWeight: '500',
     },
     sessionDuration: {
         fontSize: 12,
