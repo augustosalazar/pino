@@ -14,6 +14,7 @@ interface InstitutionStats {
     total_exercises: number;
     total_correct: number;
     overall_accuracy: number;
+    average_difficulty_by_operator?: Record<string, number>; // Added to display avg difficulty per skill
     filter_options: {
         grades: string[];
         age_range: {
@@ -106,6 +107,21 @@ export default function AdminStatsScreen() {
 
             <ScrollView contentContainerStyle={styles.content}>
 
+                {/* Filter Toggle Button */}
+                <View style={styles.filterHeader}>
+                    <Text style={styles.filterHeaderText}>
+                        Institution Statistics
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.filterToggleButton}
+                        onPress={() => setShowFilters(!showFilters)}
+                    >
+                        <Ionicons name="funnel" size={20} color="#007AFF" />
+                        <Text style={styles.filterToggleText}>
+                            {showFilters ? 'Hide Filters' : 'Show Filters'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
 
                 {/* Filter Section */}
                 {showFilters && (
@@ -217,6 +233,22 @@ export default function AdminStatsScreen() {
                                 {stats.total_correct} correct out of {stats.total_exercises} exercises
                             </Text>
                         </View>
+
+                        {/* Average Difficulty per Skill/Operator */}
+                        {stats.average_difficulty_by_operator && Object.keys(stats.average_difficulty_by_operator).length > 0 && (
+                            <View style={styles.difficultySection}>
+                                <Text style={styles.sectionTitle}>Average Difficulty by Skill</Text>
+                                <View style={styles.difficultyGrid}>
+                                    {Object.entries(stats.average_difficulty_by_operator).map(([operator, difficulty]) => (
+                                        <View key={operator} style={styles.difficultyCard}>
+                                            <Text style={styles.operatorSymbol}>{operator}</Text>
+                                            <Text style={styles.difficultyValue}>{difficulty.toFixed(1)}</Text>
+                                            <Text style={styles.difficultyLabel}>Avg Level</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
                     </>
                 )}
             </ScrollView>
@@ -479,5 +511,77 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#999',
         textAlign: 'center',
+    },
+    filterHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        marginBottom: 16,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    filterHeaderText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#000',
+    },
+    filterToggleButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        padding: 8,
+    },
+    filterToggleText: {
+        fontSize: 14,
+        color: '#007AFF',
+        fontWeight: '600',
+    },
+    difficultySection: {
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#000',
+        marginBottom: 16,
+    },
+    difficultyGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+    difficultyCard: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 16,
+        minWidth: '45%',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    operatorSymbol: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#007AFF',
+        marginBottom: 8,
+    },
+    difficultyValue: {
+        fontSize: 24,
+        fontWeight: '600',
+        color: '#333',
+    },
+    difficultyLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 4,
     },
 });
