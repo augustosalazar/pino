@@ -506,6 +506,13 @@ async def get_user_stats(user_ref: str):
         
         user = users[0]
         
+        # Don't return stats for admin users (they don't play the game)
+        if user.get('user_type') == 2:
+            raise HTTPException(
+                status_code=403, 
+                detail="Statistics not available for admin users"
+            )
+        
         # Get sessions
         sessions = roble_client.read_table("pine_exercise_sessions", {"user_ref": user_ref})
         
@@ -593,8 +600,13 @@ async def get_institution_stats(institution_ref: str, filters: InstitutionStatsR
         
         filtered_users = []
         for user in all_users:
-            if user.get("user_type", 1) != 1:
+            user_type = user.get("user_type")
+            
+            # Only include students (user_type must be explicitly 1)
+            # If user_type is None or missing, skip (don't assume student)
+            if user_type != 1:
                 continue
+                
             if filters.age_min is not None and (user.get("age") is None or user.get("age") < filters.age_min):
                 continue
             if filters.age_max is not None and (user.get("age") is None or user.get("age") > filters.age_max):
@@ -646,14 +658,18 @@ async def get_institution_stats(institution_ref: str, filters: InstitutionStatsR
 @app.get("/api/institutions/{institution_ref}/users")
 async def get_institution_users(institution_ref: str):
     """
-    Get all users for a specific institution.
+    Get all student users for a specific institution.
     Used by admin interface to populate user selector dropdown.
+    Only returns students (user_type=1), not admins.
     """
     try:
         print(f"[DEBUG] Getting users for institution: {institution_ref}")
         
         # Get all users for this institution
         users = roble_client.read_table("pine_users", {"institution_ref": institution_ref})
+        
+        # Filter to only include students (user_type = 1), exclude admins
+        student_users = [u for u in users if u.get("user_type", 1) == 1]
         
         # Return user list with basic info
         user_list = [
@@ -665,10 +681,10 @@ async def get_institution_users(institution_ref: str):
                 "grade": u.get("grade"),
                 "current_score": u.get("current_score", 0)
             }
-            for u in users
+            for u in student_users
         ]
         
-        print(f"[DEBUG] Found {len(user_list)} users for institution {institution_ref}")
+        print(f"[DEBUG] Found {len(user_list)} student users (excluding admins) for institution {institution_ref}")
         return user_list
         
     except HTTPException:

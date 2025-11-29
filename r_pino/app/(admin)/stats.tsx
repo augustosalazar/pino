@@ -55,6 +55,7 @@ export default function AdminStatsScreen() {
             };
 
             const data = await PineServerAPI.getInstitutionStats(user.institution_ref, filters);
+            console.log('Institution stats:', data);
             setStats(data);
         } catch (err: any) {
             setError(err.message || 'Failed to load statistics');
