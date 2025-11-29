@@ -1,11 +1,14 @@
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
 import { PineServerAPI } from '../services/api';
 import { StatsResponse } from '../services/types';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../contexts/AuthContext';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function StatsScreen() {
+    const router = useRouter();
     const { user } = useAuth();
     const [stats, setStats] = useState<StatsResponse | null>(null);
     const [loading, setLoading] = useState(true);
@@ -50,10 +53,13 @@ export default function StatsScreen() {
             <StatusBar style="auto" />
 
             <ScrollView contentContainerStyle={styles.content}>
-                {/* Header */}
+                {/* Custom App Bar */}
                 <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color="#007AFF" />
+                    </TouchableOpacity>
                     <Text style={styles.title}>Your Statistics</Text>
-                    <Text style={styles.subtitle}>Track your progress</Text>
+                    <View style={{ width: 40 }} />
                 </View>
 
                 {/* Overall Stats */}
@@ -171,18 +177,18 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     header: {
-        marginTop: 20,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 24,
     },
+    backButton: {
+        padding: 8,
+    },
     title: {
-        fontSize: 32,
+        fontSize: 24,
         fontWeight: 'bold',
         color: '#333',
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#666',
     },
     section: {
         marginBottom: 32,
