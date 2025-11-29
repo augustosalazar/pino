@@ -5,12 +5,12 @@ import { UserAnalyticsResponse } from '../../services/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'expo-router';
-import { LineChart } from 'react-native-gifted-charts';
 
 export default function InstitutionAdminScreen() {
     const router = useRouter();
     const { user, logout } = useAuth();
     const [selectedUserRef, setSelectedUserRef] = useState<string | null>(null);
+    const [selectedUser, setSelectedUser] = useState<any | null>(null);
     const [analytics, setAnalytics] = useState<UserAnalyticsResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState<any[]>([]);
@@ -26,7 +26,6 @@ export default function InstitutionAdminScreen() {
         if (!user?.institution_ref) return;
 
         try {
-            // Note: Implement this endpoint on backend
             const institutionUsers = await PineServerAPI.getAllInstitutionUsers(user.institution_ref);
             setUsers(institutionUsers);
         } catch (error) {
@@ -67,7 +66,7 @@ export default function InstitutionAdminScreen() {
             >
                 <Ionicons name="person" size={20} color="#007AFF" />
                 <Text style={styles.selectorText}>
-                    {selectedUserRef ? `User: ${selectedUserRef.substring(0, 8)}...` : 'Select a user'}
+                    {selectedUser ? `${selectedUser.username || selectedUser.email}` : 'Select a user'}
                 </Text>
                 <Ionicons name="chevron-down" size={20} color="#007AFF" />
             </TouchableOpacity>
@@ -81,6 +80,7 @@ export default function InstitutionAdminScreen() {
                             style={styles.userItem}
                             onPress={() => {
                                 loadUserAnalytics(u.user_ref);
+                                setSelectedUser(u);
                                 setShowUserPicker(false);
                             }}
                         >
@@ -246,50 +246,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    header: {
-        padding: 20,
-        paddingTop: 60,
-        backgroundColor: 'white',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E5EA',
-    },
-    headerContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    greetingSection: {
-        flex: 1,
-    },
-    greeting: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: '#000',
-    },
-    institutionName: {
-        fontSize: 14,
-        color: '#8E8E93',
-        marginTop: 2,
-    },
-    logoutButton: {
-        padding: 8,
-    },
-    pageTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#000',
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#000',
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#8E8E93',
-        marginTop: 4,
     },
     userSelector: {
         flexDirection: 'row',
@@ -514,12 +470,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#8E8E93',
         fontWeight: '500',
-    },
-    sessionDuration: {
-        fontSize: 12,
-        color: '#8E8E93',
-        marginTop: 8,
-        fontStyle: 'italic',
     },
     emptyState: {
         flex: 1,
