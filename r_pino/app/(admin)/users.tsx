@@ -39,6 +39,7 @@ export default function InstitutionAdminScreen() {
         try {
             const data = await PineServerAPI.getUserAnalytics(userRef);
             setAnalytics(data);
+            console.log('User analytics:', data);
             setSelectedUserRef(userRef);
         } catch (error) {
             console.error('Failed to load analytics:', error);

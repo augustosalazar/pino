@@ -733,9 +733,10 @@ async def get_user_analytics(
         sessions_summary = [
             {
                 "session_id": s.get('_id'),
-                "created_at": s.get('created_at', ''),
-                "started_at": s.get('started_at'),
-                "completed_at": s.get('completed_at'),
+                # Roble only has started_at and completed_at (no created_at field)
+                "created_at": s.get('started_at') or s.get('completed_at', ''),
+                "started_at": s.get('started_at', ''),
+                "completed_at": s.get('completed_at', ''),
                 "model_ref": s.get('model_ref', ''),
                 "total_exercises": s.get('total_exercises', 0),
                 "correct_answers": s.get('correct_answers', 0),
@@ -743,7 +744,7 @@ async def get_user_analytics(
                 "avg_difficulty": s.get('avg_difficulty', 0),
                 "total_time_ms": s.get('total_time_ms', 0)
             }
-            for s in sorted(sessions, key=lambda x: x.get('created_at', ''), reverse=True)
+            for s in sorted(sessions, key=lambda x: x.get('started_at', ''), reverse=True)
         ]
         
         return UserAnalyticsResponse(
@@ -892,7 +893,8 @@ async def get_model_performance(model_ref: str):
         
         sessions_by_date = {}
         for session in all_sessions:
-            date = (session.get('created_at', '') or '')[:10]
+            # Use started_at since Roble doesn't have created_at
+            date = (session.get('started_at', '') or '')[:10]
             if date:
                 sessions_by_date[date] = sessions_by_date.get(date, 0) + 1
         
