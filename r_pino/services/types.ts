@@ -57,3 +57,81 @@ export interface UserState {
     currentScore: number;
     stats?: StatsResponse;
 }
+
+// Analytics Types
+
+export interface DifficultyChange {
+    timestamp: string;
+    operator: string;
+    previous_difficulty: number;
+    new_difficulty: number;
+    reason: string;
+    session_ref: string;
+}
+
+export interface OperatorAnalytics {
+    operator: string;
+    current_difficulty: number;
+    difficulty_history: DifficultyChange[];
+    total_attempts: number;
+    total_correct: number;
+    success_rate: number;
+}
+
+export interface SessionSummary {
+    session_id: string;
+    created_at: string;
+    started_at?: string;
+    completed_at?: string;
+    model_ref: string;
+    total_exercises: number;
+    correct_answers: number;
+    score_earned: number;
+    avg_difficulty: number;
+    total_time_ms: number;
+}
+
+export interface UserAnalyticsResponse {
+    user_ref: string;
+    age?: number;
+    grade?: string | number;
+    institution_ref?: string;
+    total_sessions: number;
+    total_exercises: number;
+    overall_accuracy: number;
+    current_score: number;
+    operator_analytics: Record<string, OperatorAnalytics>;
+    sessions_summary: SessionSummary[];
+}
+
+export interface CohortStats {
+    operator: string;
+    avg_difficulty: number;
+    min_difficulty: number;
+    max_difficulty: number;
+    stddev?: number;
+    avg_success_rate: number;
+}
+
+export interface CohortAnalyticsResponse {
+    cohort_description: string;
+    user_count: number;
+    age_group?: string;
+    grade?: string | number;
+    institution_ref?: string;
+    model_ref?: string;
+    difficulty_stats: Record<string, CohortStats>;
+    overall_success_rate: number;
+    avg_session_score: number;
+    total_sessions: number;
+}
+
+export interface ModelPerformanceResponse {
+    model_ref: string;
+    total_users: number;
+    total_sessions: number;
+    total_exercises: number;
+    avg_success_rate: number;
+    difficulty_distribution: Record<string, { avg: number; min: number; max: number }>;
+    sessions_over_time: Array<{ date: string; count: number }>;
+}
