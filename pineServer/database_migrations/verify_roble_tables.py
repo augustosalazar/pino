@@ -4,6 +4,14 @@
 Script para verificar todas las tablas de la base de datos Roble
 Usando la API de Roble (no conexión directa PostgreSQL)
 Incluye prueba de escritura y lectura con campos viejos + nuevos
+
+Modificaciones:
+- Si una escritura (insert) falla, mostrar:
+    - Nombre de la tabla
+    - Datos enviados al servidor
+    - Respuesta completa del servidor
+  y terminar inmediatamente la ejecución del script.
+- Si falla verificación posterior (lectura / campos), también mostrar tabla + datos enviados.
 """
 
 import os
@@ -84,21 +92,55 @@ class RobleVerifier:
             elif response.status_code == 400:
                 return {"exists": False, "error": response.text}
             else:
-                return {"exists": False, "error": f"Status {response.status_code}"}
+                return {"exists": False, "error": f"Status {response.status_code}: {response.text}"}
                 
         except Exception as e:
             return {"exists": False, "error": str(e)}
 
     def insert_record(self, table_name: str, record: Dict) -> Dict:
-        """Inserta un registro"""
+        """Inserta un registro. Si falla, muestra tabla, datos y respuesta del servidor, y termina."""
         url = f"{self.db_url}/insert"
         payload = {
             "tableName": table_name,
             "records": [record]
         }
-        response = self.session.post(url, json=payload)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = self.session.post(url, json=payload)
+        except requests.RequestException as e:
+            print(f"[X] Error de red al insertar en {table_name}: {e}")
+            print("\n[DEBUG] Tabla en la que falló la escritura:", table_name)
+            print("[DEBUG] Datos enviados al servidor:")
+            print(json.dumps(record, indent=2, ensure_ascii=False))
+            sys.exit(1)
+
+        # Si el status no es 200/201, mostrar todo y terminar
+        if not response.ok:
+            print(f"[X] Falló la inserción en tabla '{table_name}'")
+            print("Status code:", response.status_code)
+            print("\n[DEBUG] Tabla en la que falló la escritura:", table_name)
+            print("[DEBUG] Datos enviados al servidor:")
+            print(json.dumps(record, indent=2, ensure_ascii=False))
+            print("\nRespuesta del servidor (texto bruto):")
+            print(response.text)
+            # Intentar también parsear JSON si es posible
+            try:
+                print("\nRespuesta del servidor (JSON parseado):")
+                print(json.dumps(response.json(), indent=2, ensure_ascii=False))
+            except Exception:
+                pass
+            sys.exit(1)
+
+        # Si es OK, intentar parsear JSON normalmente
+        try:
+            return response.json()
+        except ValueError:
+            print(f"[X] La respuesta de inserción en tabla '{table_name}' no es JSON válido.")
+            print("\n[DEBUG] Tabla en la que falló la escritura:", table_name)
+            print("[DEBUG] Datos enviados al servidor:")
+            print(json.dumps(record, indent=2, ensure_ascii=False))
+            print("Respuesta del servidor:")
+            print(response.text)
+            sys.exit(1)
 
     def delete_record(self, table_name: str, record_id: str) -> bool:
         """Elimina un registro por _id"""
@@ -108,11 +150,18 @@ class RobleVerifier:
             "idColumn": "_id",
             "idValue": record_id
         }
-        response = self.session.delete(url, json=payload)
+        try:
+            response = self.session.delete(url, json=payload)
+        except requests.RequestException as e:
+            print(f"[X] Error de red al borrar en {table_name}: {e}")
+            return False
         return response.status_code == 200
 
     def test_write_read(self, table_name: str, sample_data: Dict) -> bool:
-        """Prueba escritura y lectura completa"""
+        """Prueba escritura y lectura completa.
+        
+        Si la inserción o verificación falla, se imprime tabla + datos enviados y se termina el script.
+        """
         print(f"\nProbando escritura/lectura en {table_name}...")
         
         try:
@@ -120,23 +169,34 @@ class RobleVerifier:
             print("  [>] Insertando registro de prueba...")
             result = self.insert_record(table_name, sample_data)
             
-            # Debug: imprimir respuesta completa si falla o si no hay IDs
+            # Debug: imprimir respuesta completa si no hay bandera de 'inserted' o IDs
             if not result.get("inserted") or not result.get("insertedIds"):
-                print(f"  [DEBUG] Respuesta de inserción: {json.dumps(result, indent=2)}")
+                print("  [DEBUG] Respuesta de inserción (estructura inesperada):")
+                print(json.dumps(result, indent=2, ensure_ascii=False))
             
             if not result.get("inserted"):
-                print(f"  [X] Falló inserción")
-                return False
+                print(f"  [X] Falló inserción lógica (campo 'inserted' es falso o no existe)")
+                print("\n[DEBUG] Tabla en la que falló la escritura:", table_name)
+                print("[DEBUG] Datos enviados al servidor:")
+                print(json.dumps(sample_data, indent=2, ensure_ascii=False))
+                print("  [DEBUG] Respuesta de inserción:")
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+                sys.exit(1)
                 
             # Intentar obtener ID de insertedIds o del objeto insertado
             inserted_ids = result.get("insertedIds", [])
             if inserted_ids:
                 record_id = inserted_ids[0]
-            elif result.get("inserted") and "_id" in result["inserted"][0]:
+            elif result.get("inserted") and isinstance(result["inserted"], list) and result["inserted"] and "_id" in result["inserted"][0]:
                 record_id = result["inserted"][0]["_id"]
             else:
-                print("  [X] No se devolvió ID insertado")
-                return False
+                print("  [X] No se devolvió ID insertado en la respuesta")
+                print("\n[DEBUG] Tabla en la que falló la escritura:", table_name)
+                print("[DEBUG] Datos enviados al servidor:")
+                print(json.dumps(sample_data, indent=2, ensure_ascii=False))
+                print("  [DEBUG] Respuesta de inserción completa:")
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+                sys.exit(1)
                 
             print(f"  [OK] Insertado con ID: {record_id}")
             
@@ -148,12 +208,20 @@ class RobleVerifier:
             
             if response.status_code != 200:
                 print(f"  [X] Falló lectura: {response.status_code}")
-                return False
+                print("\n[DEBUG] Tabla de la lectura fallida:", table_name)
+                print("[DEBUG] Datos originalmente enviados al servidor:")
+                print(json.dumps(sample_data, indent=2, ensure_ascii=False))
+                print("  Respuesta del servidor:")
+                print(response.text)
+                sys.exit(1)
                 
             records = response.json()
             if not records:
-                print("  [X] Registro no encontrado")
-                return False
+                print("  [X] Registro no encontrado en lectura")
+                print("\n[DEBUG] Tabla de la lectura fallida:", table_name)
+                print("[DEBUG] Datos originalmente enviados al servidor:")
+                print(json.dumps(sample_data, indent=2, ensure_ascii=False))
+                sys.exit(1)
                 
             read_record = records[0]
             
@@ -165,9 +233,14 @@ class RobleVerifier:
             
             if missing_fields:
                 print(f"  [X] Faltan campos en lectura: {', '.join(missing_fields)}")
-                # Limpiar
+                print("\n[DEBUG] Tabla de la verificación fallida:", table_name)
+                print("[DEBUG] Datos originalmente enviados al servidor:")
+                print(json.dumps(sample_data, indent=2, ensure_ascii=False))
+                print("  [DEBUG] Registro leído:")
+                print(json.dumps(read_record, indent=2, ensure_ascii=False))
+                # Limpiar (no es crítico si falla)
                 self.delete_record(table_name, record_id)
-                return False
+                sys.exit(1)
             
             print(f"  [OK] Todos los campos ({len(sample_data)}) verificados correctamente")
             
@@ -178,9 +251,15 @@ class RobleVerifier:
             
             return True
             
+        except SystemExit:
+            # Re-lanzar sys.exit para no enmascararlo
+            raise
         except Exception as e:
-            print(f"  [X] Excepción: {e}")
-            return False
+            print(f"  [X] Excepción inesperada en test_write_read para {table_name}: {e}")
+            print("\n[DEBUG] Tabla en la que ocurrió la excepción:", table_name)
+            print("[DEBUG] Datos enviados al servidor:")
+            print(json.dumps(sample_data, indent=2, ensure_ascii=False))
+            sys.exit(1)
 
 def main():
     print("=" * 80)
@@ -321,7 +400,8 @@ def main():
         print(f"\nTabla: {table} {status}")
         
         if exists_info["exists"]:
-            # Probar escritura/lectura
+            # Probar escritura/lectura.
+            # Si algo falla en escritura o lectura, el script hará sys.exit(1) dentro de test_write_read.
             if verifier.test_write_read(table, data):
                 success_count += 1
         else:
