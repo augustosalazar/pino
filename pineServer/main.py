@@ -152,6 +152,7 @@ async def ensure_user(request: EnsureUserRequest):
     Ensure user exists in pine_users table
     Creates user if doesn't exist, returns existing user if found
     Validates institution_ref for existing users
+    Now also initializes and returns gamification profile
     """
     try:
         # Check if user exists
@@ -168,9 +169,14 @@ async def ensure_user(request: EnsureUserRequest):
                         detail="Institution mismatch. This account is associated with a different institution."
                     )
             
+            # Get or create gamification profile for existing user
+            from gamification_profile import obtener_perfil_completo
+            perfil_gamificacion = await obtener_perfil_completo(request.user_ref)
+            
             return {
                 "status": "existing",
-                "user": existing_user
+                "user": existing_user,
+                "gamification": perfil_gamificacion
             }
         
         # User doesn't exist, create it
@@ -189,9 +195,16 @@ async def ensure_user(request: EnsureUserRequest):
         result = roble_client.insert_records("pine_users", [user_data])
         
         if result.get("inserted") and len(result["inserted"]) > 0:
+            new_user = result["inserted"][0]
+            
+            # Initialize gamification profile for new user
+            from gamification_profile import inicializar_perfil_completo
+            perfil_gamificacion = await inicializar_perfil_completo(request.user_ref)
+            
             return {
                 "status": "created",
-                "user": result["inserted"][0]
+                "user": new_user,
+                "gamification": perfil_gamificacion
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to create user")
@@ -248,12 +261,26 @@ async def start_session(request: StartSessionRequest):
         
         print(f"[DEBUG] Difficulty map: {difficulty_by_operator}")
         
-        # Generate exercises using injected batch generator
+        # Get pending items for this user (items that need review)
+        from gamification_batch import obtener_items_pendientes
+        # TODO: Determine operation from request or default to main operation
+        # For now, we'll mix all operations' pending items
+        all_pending_items = []
+        for op_symbol, op_name in [('+', 'suma'), ('-', 'resta'), ('*', 'mult'), ('/', 'div')]:
+            pending = await obtener_items_pendientes(request.user_ref, op_name, limite=2)
+            all_pending_items.extend(pending)
+        
+        print(f"[DEBUG] Found {len(all_pending_items)} pending items for review")
+        
+        # Generate NEW exercises using injected batch generator
         container = get_container()
-        print(f"[DEBUG] Generating {request.num_exercises} exercises")
+        # Reduce the number of new exercises to make room for pending items
+        num_new_exercises = max(1, request.num_exercises - len(all_pending_items))
+        print(f"[DEBUG] Generating {num_new_exercises} new exercises + {len(all_pending_items)} pending items")
+        
         exercises = container.batch_generator.generate_batch(
             difficulty_by_operator,
-            request.num_exercises
+            num_new_exercises
         )
         print(f"[DEBUG] Generated {len(exercises)} exercises")
         
@@ -450,13 +477,76 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
             print(f"[ERROR] Failed to update user score: {e}")
             # Continue anyway
         
-        return CompleteSessionResponse(
-            session_id=session_id,
-            total_exercises=total_exercises,
-            correct_answers=correct_answers,
-            score_earned=score_earned,
-            difficulty_adjustments=difficulty_changes
-        )
+        # ==================== GAMIFICATION PROCESSING ====================
+        # Process gamification rewards for this batch
+        gamification_result = None
+        try:
+            from gamification_batch import procesar_batch_completo
+            
+            # Build results for gamification processor
+            # Map operators to Spanish names
+            op_map = {'+': 'suma', '-': 'resta', '*': 'mult', '/': 'div'}
+            
+            resultados_items = []
+            for ex in request.exercises:
+                # Determine if fue_primer_intento (first attempt)
+                # For now, assume all are first attempt since we don't track retries yet
+                # TODO: Add retry tracking in the future
+                fue_primer_intento = True  # Simplified for now
+                
+                item_result = {
+                    'exercise_id': f"{session_id}_{ex.operand_1}_{ex.operator.value}_{ex.operand_2}",
+                    'fue_primer_intento': fue_primer_intento,
+                    'es_correcto_final': ex.is_correct,
+                    'operacion': op_map.get(ex.operator.value, 'suma'),
+                    'dificultad': ex.difficulty_level
+                }
+                resultados_items.append(item_result)
+            
+            # Determine main operation for this batch
+            # Use the most common operator
+            operators_count = {}
+            for ex in request.exercises:
+                op_name = op_map.get(ex.operator.value, 'suma')
+                operators_count[op_name] = operators_count.get(op_name, 0) + 1
+            
+            operacion_principal = max(operators_count, key=operators_count.get) if operators_count else 'suma'
+            
+            # Calculate average difficulty
+            dificultad_media = sum(e.difficulty_level for e in request.exercises) / len(request.exercises) if request.exercises else 1.0
+            
+            print(f"[DEBUG] Processing gamification for {len(resultados_items)} items, operation: {operacion_principal}")
+            
+            gamification_result = await procesar_batch_completo(
+                user_ref=user_ref,
+                resultados_items=resultados_items,
+                operacion_principal=operacion_principal,
+                dificultad_media=dificultad_media
+            )
+            
+            print(f"[DEBUG] Gamification processing complete: PP={gamification_result['recompensas']['pp_ganados']}, PD={gamification_result['recompensas']['pd']['total_pd_global']}, XP={gamification_result['recompensas']['xp_ganada']}")
+            
+        except Exception as e:
+            print(f"[ERROR] Gamification processing failed (non-critical): {e}")
+            import traceback
+            traceback.print_exc()
+            # Don't fail the entire request, gamification is supplementary
+        
+        # ==================== BUILD RESPONSE ====================
+        
+        response_data = {
+            "session_id": session_id,
+            "total_exercises": total_exercises,
+            "correct_answers": correct_answers,
+            "score_earned": score_earned,
+            "difficulty_adjustments": difficulty_changes
+        }
+        
+        # Add gamification data if available
+        if gamification_result:
+            response_data["gamification"] = gamification_result
+        
+        return CompleteSessionResponse(**response_data)
     
     except HTTPException:
         raise
@@ -577,6 +667,58 @@ async def update_profile(user_ref: str, request: UpdateProfileRequest):
         raise
     except Exception as e:
         print(f"[ERROR] Exception in update_profile: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== GAMIFICATION ENDPOINTS ====================
+
+@app.get("/api/users/{user_ref}/gamification")
+async def get_gamification_profile(user_ref: str):
+    """
+    Get complete gamification profile for a user
+    
+    Returns:
+    - Perfil de gamificación (PP, PD, XP, niveles, rachas)
+    - Operaciones y niveles de dominio
+    - Desbloqueos de operaciones y modos
+    - Progreso hacia próximos desbloqueos
+    """
+    try:
+        print(f"[DEBUG] Getting gamification profile for user: {user_ref}")
+        
+        from gamification_profile import obtener_perfil_completo
+        from gamification_unlocks import (
+            obtener_modos_disponibles,
+            obtener_operaciones_disponibles,
+            obtener_progreso_desbloqueos
+        )
+        
+        # Get complete gamification profile
+        perfil_completo = await obtener_perfil_completo(user_ref)
+        
+        # Get available modes
+        modos_disponibles = await obtener_modos_disponibles(user_ref)
+        
+        # Get available operations
+        operaciones_disponibles = await obtener_operaciones_disponibles(user_ref)
+        
+        # Get unlock progress
+        progreso_desbloqueos = await obtener_progreso_desbloqueos(user_ref)
+        
+        return {
+            "perfil": perfil_completo['perfil'],
+            "operaciones": perfil_completo['operaciones'],
+            "modos_disponibles": modos_disponibles,
+            "operaciones_disponibles": operaciones_disponibles,
+            "progreso_desbloqueos": progreso_desbloqueos
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Exception in get_gamification_profile: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

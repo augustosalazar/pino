@@ -104,30 +104,52 @@
 
 ---
 
-## FASE 2: Integración con Endpoints (Próxima Sesión)
+## FASE 2: Integración con Endpoints ✅ COMPLETADA
 
-### Step 2.1: Actualizar endpoint de inicio de sesión
-- Verificar/crear perfil de gamificación al hacer login
-- Devolver estado de gamificación en respuesta
+### Step 2.1: Actualizar endpoint de inicio de sesión ✅ COMPLETADO
+- ✅ Verificar/crear perfil de gamificación al hacer login
+- ✅ Devolver estado de gamificación en respuesta
 
-### Step 2.2: Actualizar endpoint de inicio de batch
-- Incluir items pendientes en el batch
-- Ajustar dificultad según nivel de dominio
+**Implementado en:** `/api/users/ensure`
+- Inicializa perfil para usuarios nuevos
+- Obtiene perfil para usuarios existentes
+- Retorna perfil completo en respuesta
 
-### Step 2.3: Actualizar endpoint de finalización de batch
-- Llamar a `procesar_batch_completo`
-- Calcular y devolver recompensas
-- Verificar level ups
-- Verificar desbloqueos
+### Step 2.2: Actualizar endpoint de inicio de batch ✅ COMPLETADO
+- ✅ Incluir items pendientes en el batch
+- ⚠️ Ajustar dificultad según nivel de dominio (parcial)
 
-### Step 2.4: Crear endpoint de estado de gamificación
-- Obtener perfil completo
-- Devolver progreso por operación
-- Devolver desbloqueos actuales
+**Implementado en:** `/api/sessions/start`
+- Lee items pendientes de todas las operaciones
+- Ajusta cantidad de ejercicios nuevos
+- **TODO:** Convertir pending_items en Exercises
+
+### Step 2.3: Actualizar endpoint de finalización de batch ✅ COMPLETADO
+- ✅ Llamar a `procesar_batch_completo()`
+- ✅ Calcular y devolver recompensas
+-✅ Verificar level ups
+- ✅ Verificar desbloqueos
+
+**Implementado en:** `/api/sessions/{session_id}/complete`
+- Procesa gamificación completa después de guardar resultados
+- Mapea operadores a nombres en español
+- Determina operación principal automáticamente
+- Retorna objeto `gamification` completo
+
+### Step 2.4: Crear endpoint de estado de gamificación ✅ COMPLETADO
+- ✅ Obtener perfil completo
+- ✅ Devolver progreso por operación
+- ✅ Devolver desbloqueos actuales
+
+**Implementado en:** `/api/users/{user_ref}/gamification` (GET)
+- Retorna perfil completo
+- Retorna operaciones con niveles
+- Retorna modos disponibles
+- Retorna progreso hacia desbloqueos
 
 ---
 
-## FASE 3: Mini-jefes y Modos Especiales (Siguiente Sesión)
+## FASE 3: Mini-jefes y Modos Especiales (Pendiente)
 
 ### Step 3.1: Crear módulo de mini-jefes
 - Generar batch de mini-jefe según tipo
