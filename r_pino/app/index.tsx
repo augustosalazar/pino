@@ -7,7 +7,6 @@ import {
     ActivityIndicator,
     ScrollView,
     RefreshControl,
-    Alert,
 } from 'react-native';
 import { useRouter, Redirect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -62,14 +61,7 @@ export default function HomeScreen() {
     };
 
     const handleLogout = async () => {
-        Alert.alert(
-            'Cerrar Sesión',
-            '¿Estás seguro que quieres salir?',
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Salir', style: 'destructive', onPress: async () => await logout() },
-            ]
-        );
+        await logout();
     };
 
     // Redirect admin users

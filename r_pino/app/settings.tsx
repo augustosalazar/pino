@@ -1,17 +1,19 @@
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, ThemeMode } from '../contexts/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, ThemeMode } from '../contexts/ThemeContext';
 
 export default function SettingsScreen() {
     const router = useRouter();
-    const { theme, themeMode, setThemeMode, isDark } = useTheme();
+    const { themeMode, setThemeMode } = useTheme();
 
-    const themeOptions: { value: ThemeMode; label: string; icon: string }[] = [
-        { value: 'light', label: 'Light Mode', icon: 'sunny' },
-        { value: 'dark', label: 'Dark Mode', icon: 'moon' },
-        { value: 'auto', label: 'Auto (System)', icon: 'phone-portrait' },
+    const themeOptions: { value: ThemeMode; label: string; icon: string; gradient: [string, string] }[] = [
+        { value: 'light', label: 'Modo Claro', icon: 'sunny', gradient: ['#FFD700', '#FFA500'] },
+        { value: 'dark', label: 'Modo Oscuro', icon: 'moon', gradient: ['#4facfe', '#00f2fe'] },
+        { value: 'auto', label: 'Auto (Sistema)', icon: 'phone-portrait', gradient: ['#f093fb', '#f5576c'] },
     ];
 
     const handleThemeChange = async (mode: ThemeMode) => {
@@ -19,133 +21,126 @@ export default function SettingsScreen() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <StatusBar style={theme.statusBarStyle} />
+        <LinearGradient colors={['#1a1a2e', '#16213e', '#0f3460']} style={styles.container}>
+            <StatusBar style="light" />
 
             <ScrollView contentContainerStyle={styles.content}>
+                {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={theme.primary} />
+                        <Ionicons name="arrow-back" size={28} color="#FFD700" />
                     </TouchableOpacity>
-                    <Text style={[styles.title, { color: theme.text }]}>Settings</Text>
-                    <View style={{ width: 24 }} />
+                    <Text style={styles.title}>⚙️ AJUSTES</Text>
+                    <View style={{ width: 28 }} />
                 </View>
 
-                <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                            Appearance
-                        </Text>
-                        <Text style={[styles.sectionDescription, { color: theme.textSecondary }]}>
-                            Choose your preferred theme
-                        </Text>
+                {/* Theme Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Apariencia</Text>
+                    <Text style={styles.sectionDescription}>
+                        Elige tu tema preferido
+                    </Text>
 
-                        <View style={styles.optionsContainer}>
-                            {themeOptions.map((option) => (
-                                <TouchableOpacity
-                                    key={option.value}
-                                    style={[
-                                        styles.optionButton,
-                                        {
-                                            backgroundColor: theme.surface,
-                                            borderColor: theme.border,
-                                        },
-                                        themeMode === option.value && {
-                                            backgroundColor: theme.primary,
-                                            borderColor: theme.primary,
-                                        },
-                                    ]}
-                                    onPress={() => handleThemeChange(option.value)}
-                                >
-                                    <View style={styles.optionContent}>
-                                        <Ionicons
-                                            name={option.icon as any}
-                                            size={24}
-                                            color={
-                                                themeMode === option.value
-                                                    ? '#FFFFFF'
-                                                    : theme.primary
-                                            }
-                                        />
-                                        <Text
-                                            style={[
-                                                styles.optionLabel,
-                                                {
-                                                    color:
-                                                        themeMode === option.value
-                                                            ? '#FFFFFF'
-                                                            : theme.text,
-                                                },
-                                            ]}
-                                        >
-                                            {option.label}
-                                        </Text>
+                    <View style={styles.optionsContainer}>
+                        {themeOptions.map((option) => (
+                            <TouchableOpacity
+                                key={option.value}
+                                style={styles.optionCard}
+                                onPress={() => handleThemeChange(option.value)}
+                                activeOpacity={0.7}
+                            >
+                                {themeMode === option.value ? (
+                                    <LinearGradient
+                                        colors={option.gradient}
+                                        style={styles.optionGradient}
+                                    >
+                                        <View style={styles.optionContent}>
+                                            <Ionicons name={option.icon as any} size={32} color="#FFFFFF" />
+                                            <Text style={styles.optionLabelSelected}>{option.label}</Text>
+                                        </View>
+                                        <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
+                                    </LinearGradient>
+                                ) : (
+                                    <View style={styles.optionInactive}>
+                                        <View style={styles.optionContent}>
+                                            <Ionicons name={option.icon as any} size={32} color="rgba(255, 255, 255, 0.6)" />
+                                            <Text style={styles.optionLabel}>{option.label}</Text>
+                                        </View>
                                     </View>
-                                    {themeMode === option.value && (
-                                        <Ionicons
-                                            name="checkmark-circle"
-                                            size={24}
-                                            color="#FFFFFF"
-                                        />
-                                    )}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-
-                    <View style={[styles.divider, { backgroundColor: theme.divider }]} />
-
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                            Preview
-                        </Text>
-                        <View style={[styles.previewCard, { backgroundColor: theme.surface }]}>
-                            <View style={styles.previewHeader}>
-                                <Ionicons name="calculator" size={32} color={theme.primary} />
-                                <Text style={[styles.previewTitle, { color: theme.text }]}>
-                                    Pino Math
-                                </Text>
-                            </View>
-                            <Text style={[styles.previewText, { color: theme.textSecondary }]}>
-                                This is how your app will look with the selected theme
-                            </Text>
-                            <View style={styles.previewButtons}>
-                                <View
-                                    style={[
-                                        styles.previewButton,
-                                        { backgroundColor: theme.primary },
-                                    ]}
-                                >
-                                    <Text style={styles.previewButtonText}>Primary</Text>
-                                </View>
-                                <View
-                                    style={[
-                                        styles.previewButton,
-                                        {
-                                            backgroundColor: theme.surface,
-                                            borderWidth: 1,
-                                            borderColor: theme.border,
-                                        },
-                                    ]}
-                                >
-                                    <Text style={[styles.previewButtonText, { color: theme.text }]}>
-                                        Secondary
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
+                                )}
+                            </TouchableOpacity>
+                        ))}
                     </View>
                 </View>
 
-                <View style={styles.infoContainer}>
-                    <Ionicons name="information-circle-outline" size={20} color={theme.textTertiary} />
-                    <Text style={[styles.infoText, { color: theme.textTertiary }]}>
-                        The 'Auto' mode will automatically switch between light and dark themes based
-                        on your device's system settings.
+                {/* Info Section */}
+                <View style={styles.infoCard}>
+                    <Ionicons name="information-circle" size={24} color="#4facfe" />
+                    <Text style={styles.infoText}>
+                        El modo 'Auto' cambiará automáticamente entre los temas claro y oscuro según la configuración de tu dispositivo.
                     </Text>
                 </View>
+
+                {/* App Info */}
+                <View style={styles.appInfo}>
+                    <View style={styles.appInfoRow}>
+                        <Ionicons name="calculator" size={40} color="#FFD700" />
+                        <View style={styles.appInfoText}>
+                            <Text style={styles.appName}>Pino Math</Text>
+                            <Text style={styles.appTagline}>Sistema de Gamificación</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.versionContainer}>
+                        <Text style={styles.versionLabel}>Versión</Text>
+                        <Text style={styles.versionNumber}>1.0.0</Text>
+                    </View>
+                </View>
+
+                {/* Quick Actions */}
+                <View style={styles.actionsGrid}>
+                    <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+                        <LinearGradient
+                            colors={['rgba(79, 172, 254, 0.3)', 'rgba(0, 242, 254, 0.3)']}
+                            style={styles.actionGradient}
+                        >
+                            <Ionicons name="help-circle" size={32} color="#4facfe" />
+                            <Text style={styles.actionText}>Ayuda</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+                        <LinearGradient
+                            colors={['rgba(245, 93, 251, 0.3)', 'rgba(245, 87, 108, 0.3)']}
+                            style={styles.actionGradient}
+                        >
+                            <Ionicons name="document-text" size={32} color="#f093fb" />
+                            <Text style={styles.actionText}>Términos</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+                        <LinearGradient
+                            colors={['rgba(255, 215, 0, 0.3)', 'rgba(255, 165, 0, 0.3)']}
+                            style={styles.actionGradient}
+                        >
+                            <Ionicons name="shield-checkmark" size={32} color="#FFD700" />
+                            <Text style={styles.actionText}>Privacidad</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+                        <LinearGradient
+                            colors={['rgba(67, 233, 123, 0.3)', 'rgba(56, 249, 215, 0.3)']}
+                            style={styles.actionGradient}
+                        >
+                            <Ionicons name="mail" size={32} color="#43e97b" />
+                            <Text style={styles.actionText}>Contacto</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
-        </View>
+        </LinearGradient>
     );
 }
 
@@ -155,107 +150,160 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 20,
-        paddingTop: 20,
+        paddingTop: 60,
+        paddingBottom: 40,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 32,
     },
     backButton: {
-        padding: 8,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     title: {
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: 'bold',
-    },
-    card: {
-        borderRadius: 16,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
+        color: '#FFFFFF',
     },
     section: {
-        marginBottom: 24,
+        marginBottom: 32,
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: '600',
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
         marginBottom: 8,
     },
     sectionDescription: {
         fontSize: 14,
-        marginBottom: 16,
+        color: 'rgba(255, 255, 255, 0.7)',
+        marginBottom: 20,
     },
     optionsContainer: {
         gap: 12,
     },
-    optionButton: {
+    optionCard: {
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+    optionGradient: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 16,
-        borderRadius: 12,
-        borderWidth: 2,
+        padding: 20,
+    },
+    optionInactive: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 16,
     },
     optionContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-    },
-    optionLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    divider: {
-        height: 1,
-        marginBottom: 24,
-    },
-    previewCard: {
-        padding: 20,
-        borderRadius: 12,
         gap: 16,
     },
-    previewHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    previewTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    previewText: {
-        fontSize: 14,
-        lineHeight: 20,
-    },
-    previewButtons: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    previewButton: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    previewButtonText: {
-        color: '#FFFFFF',
+    optionLabelSelected: {
+        fontSize: 18,
         fontWeight: '600',
+        color: '#FFFFFF',
     },
-    infoContainer: {
+    optionLabel: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: 'rgba(255, 255, 255, 0.6)',
+    },
+    infoCard: {
         flexDirection: 'row',
-        gap: 8,
-        marginTop: 16,
-        paddingHorizontal: 8,
+        gap: 12,
+        padding: 16,
+        backgroundColor: 'rgba(79, 172, 254, 0.2)',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(79, 172, 254, 0.4)',
+        marginBottom: 32,
     },
     infoText: {
         flex: 1,
-        fontSize: 12,
-        lineHeight: 18,
+        fontSize: 13,
+        color: 'rgba(255, 255, 255, 0.9)',
+        lineHeight: 20,
+    },
+    appInfo: {
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    appInfoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        marginBottom: 16,
+    },
+    appInfoText: {
+        flex: 1,
+    },
+    appName: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        marginBottom: 4,
+    },
+    appTagline: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.7)',
+    },
+    versionContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    versionLabel: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.7)',
+    },
+    versionNumber: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#FFD700',
+    },
+    actionsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+    actionCard: {
+        width: '48%',
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    actionGradient: {
+        padding: 20,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    actionText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#FFFFFF',
+        marginTop: 8,
     },
 });
