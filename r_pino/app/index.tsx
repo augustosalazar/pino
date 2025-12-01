@@ -9,6 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { AdaptiveContainer } from '../components/AdaptiveContainer';
 import { useResponsive } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
+import { GamificationWidget } from '../components/GamificationWidget';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -118,6 +119,14 @@ export default function HomeScreen() {
                         </View>
                     </View>
                 </View>
+
+                {/* Gamification Widget */}
+                {user && (
+                    <GamificationWidget
+                        userRef={user.id}
+                        compact={!isTabletOrDesktop}
+                    />
+                )}
 
                 {/* Main Content */}
                 <View style={styles.mainContentWrapper}>
