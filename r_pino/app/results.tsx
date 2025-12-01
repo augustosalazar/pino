@@ -1,89 +1,300 @@
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+    RewardCard,
+    LevelUpModal,
+    UnlockAnimation,
+    ProgressBar,
+} from '../components/gamification';
+import { GamificationRewards } from '../services/gamification/types';
 
 export default function ResultsScreen() {
     const router = useRouter();
-    const { totalExercises, correctAnswers, scoreEarned, accuracy } = useLocalSearchParams<{
+    const params = useLocalSearchParams<{
         totalExercises: string;
         correctAnswers: string;
         scoreEarned: string;
         accuracy: string;
+        gamificationData?: string; // JSON string
     }>();
 
-    const incorrectAnswers = parseInt(totalExercises) - parseInt(correctAnswers);
-    const accuracyNum = parseFloat(accuracy);
+    const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+    const [showUnlockModal, setShowUnlockModal] = useState(false);
+    const [gamificationRewards, setGamificationRewards] = useState<GamificationRewards | null>(null);
+
+    const totalExercises = parseInt(params.totalExercises);
+    const correctAnswers = parseInt(params.correctAnswers);
+    const scoreEarned = parseInt(params.scoreEarned);
+    const accuracy = parseFloat(params.accuracy);
+    const incorrectAnswers = totalExercises - correctAnswers;
+
+    useEffect(() => {
+        // Parse gamification data if available
+        if (params.gamificationData) {
+            try {
+                const data = JSON.parse(params.gamificationData);
+                setGamificationRewards(data);
+
+                // Show level up modal if applicable
+                if (data.progreso?.hubo_levelup) {
+                    setTimeout(() => setShowLevelUpModal(true), 1000);
+                }
+            } catch (error) {
+                console.error('Error parsing gamification data:', error);
+            }
+        }
+    }, [params.gamificationData]);
+
+    const handleLevelUpClose = () => {
+        setShowLevelUpModal(false);
+
+        // Show unlock modal if there were unlocks
+        if (gamificationRewards?.desbloqueos?.hubo_desbloqueos) {
+            setTimeout(() => setShowUnlockModal(true), 300);
+        }
+    };
 
     const getMessage = () => {
-        if (accuracyNum >= 90) return { emoji: '🎉', text: 'Outstanding!', color: '#34C759' };
-        if (accuracyNum >= 70) return { emoji: '👏', text: 'Great Job!', color: '#007AFF' };
-        if (accuracyNum >= 50) return { emoji: '👍', text: 'Good Effort!', color: '#FF9500' };
-        return { emoji: '💪', text: 'Keep Practicing!', color: '#FF3B30' };
+        if (accuracy >= 90) return { emoji: '🎉', text: '¡EXCELENTE!', color: '#34C759' };
+        if (accuracy >= 70) return { emoji: '👏', text: '¡MUY BIEN!', color: '#007AFF' };
+        if (accuracy >= 50) return { emoji: '👍', text: '¡BUEN TRABAJO!', color: '#FF9500' };
+        return { emoji: '💪', text: '¡SIGUE PRACTICANDO!', color: '#FF3B30' };
     };
 
     const message = getMessage();
+    const hasGamification = !!gamificationRewards;
+
+    // Get unlocked operations
+    const unlockedOperations = hasGamification && gamificationRewards.desbloqueos.hubo_desbloqueos
+        ? Object.entries(gamificationRewards.desbloqueos.operaciones)
+            .filter(([_, unlocked]) => unlocked)
+            .map(([op, _]) => op)
+        : [];
 
     return (
         <View style={styles.container}>
-            <StatusBar style="auto" />
+            <StatusBar style="light" />
 
-            <ScrollView contentContainerStyle={styles.content}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.emoji}>{message.emoji}</Text>
-                    <Text style={[styles.title, { color: message.color }]}>{message.text}</Text>
-                </View>
-
-                {/* Score Card */}
-                <View style={styles.scoreCard}>
-                    <Text style={styles.scoreLabel}>Score Earned</Text>
-                    <Text style={styles.scoreValue}>+{scoreEarned}</Text>
-                </View>
-
-                {/* Stats Grid */}
-                <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statValue}>{accuracy}%</Text>
-                        <Text style={styles.statLabel}>Accuracy</Text>
+            <LinearGradient
+                colors={['#1a1a2e', '#16213e', '#0f3460']}
+                style={styles.gradient}
+            >
+                <ScrollView contentContainerStyle={styles.content}>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <Text style={styles.emoji}>{message.emoji}</Text>
+                        <Text style={[styles.title, { color: message.color }]}>
+                            {message.text}
+                        </Text>
+                        <Text style={styles.subtitle}>
+                            {correctAnswers}/{totalExercises} correctas
+                        </Text>
                     </View>
 
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#34C759' }]}>{correctAnswers}</Text>
-                        <Text style={styles.statLabel}>Correct</Text>
+                    {/* Gamification Rewards */}
+                    {hasGamification && (
+                        <View style={styles.rewardsSection}>
+                            <Text style={styles.sectionTitle}>🎁 Recompensas Ganadas</Text>
+
+                            {/* PP Reward */}
+                            {gamificationRewards.recompensas.pp_ganados > 0 && (
+                                <RewardCard
+                                    icon="💎"
+                                    label="Puntos de Práctica"
+                                    value={gamificationRewards.recompensas.pp_ganados}
+                                    color={['#43e97b', '#38f9d7']}
+                                    delay={0}
+                                    showPlus={true}
+                                />
+                            )}
+
+                            {/* PD Reward */}
+                            {gamificationRewards.recompensas.pd.total_pd_global > 0 && (
+                                <RewardCard
+                                    icon="🏆"
+                                    label="Puntos de Dominio"
+                                    value={gamificationRewards.recompensas.pd.total_pd_global}
+                                    color={['#fa709a', '#fee140']}
+                                    delay={100}
+                                    showPlus={true}
+                                />
+                            )}
+
+                            {/* XP Reward */}
+                            {gamificationRewards.recompensas.xp_ganada > 0 && (
+                                <RewardCard
+                                    icon="✨"
+                                    label="Experiencia"
+                                    value={gamificationRewards.recompensas.xp_ganada}
+                                    color={['#4facfe', '#00f2fe']}
+                                    delay={200}
+                                    showPlus={true}
+                                />
+                            )}
+
+                            {/* Streak Bonus */}
+                            {gamificationRewards.recompensas.pd.bonus_racha > 0 && (
+                                <RewardCard
+                                    icon="🔥"
+                                    label="Bonus Racha Diaria"
+                                    value={gamificationRewards.recompensas.pd.bonus_racha}
+                                    color={['#f093fb', '#f5576c']}
+                                    delay={300}
+                                    showPlus={true}
+                                />
+                            )}
+
+                            {/* Batch Bonus */}
+                            {gamificationRewards.recompensas.pd.bonus_batch > 0 && (
+                                <RewardCard
+                                    icon="🎯"
+                                    label="Bonus de Rendimiento"
+                                    value={gamificationRewards.recompensas.pd.bonus_batch}
+                                    color={['#667eea', '#764ba2']}
+                                    delay={400}
+                                    showPlus={true}
+                                />
+                            )}
+                        </View>
+                    )}
+
+                    {/* Progress Section */}
+                    {hasGamification && (
+                        <View style={styles.progressSection}>
+                            <Text style={styles.sectionTitle}>📊 Tu Progreso</Text>
+
+                            {/* Level Info */}
+                            <View style={styles.progressCard}>
+                                <View style={styles.progressRow}>
+                                    <Text style={styles.progressLabel}>Nivel de Jugador</Text>
+                                    <Text style={styles.progressValue}>
+                                        {gamificationRewards.progreso.nivel_jugador}
+                                        {gamificationRewards.progreso.hubo_levelup && ' 🎉'}
+                                    </Text>
+                                </View>
+
+                                {gamificationRewards.progreso.hubo_levelup && (
+                                    <Text style={styles.levelUpHint}>
+                                        ¡Subiste de nivel! Toca para ver detalles →
+                                    </Text>
+                                )}
+                            </View>
+
+                            {/* Stats */}
+                            <View style={styles.statsRow}>
+                                <View style={styles.statMini}>
+                                    <Text style={styles.statMiniValue}>{gamificationRewards.progreso.pd_global}</Text>
+                                    <Text style={styles.statMiniLabel}>PD Total</Text>
+                                </View>
+                                <View style={styles.statMini}>
+                                    <Text style={styles.statMiniValue}>{gamificationRewards.progreso.xp_total}</Text>
+                                    <Text style={styles.statMiniLabel}>XP Total</Text>
+                                </View>
+                                <View style={styles.statMini}>
+                                    <Text style={styles.statMiniValue}>{gamificationRewards.progreso.racha_dias}</Text>
+                                    <Text style={styles.statMiniLabel}>Racha 🔥</Text>
+                                </View>
+                            </View>
+
+                            {/* Pending Items */}
+                            {gamificationRewards.items_pendientes.total > 0 && (
+                                <View style={styles.pendingItemsCard}>
+                                    <Text style={styles.pendingTitle}>
+                                        📝 Items para Repasar: {gamificationRewards.items_pendientes.total}
+                                    </Text>
+                                    <Text style={styles.pendingText}>
+                                        {gamificationRewards.items_pendientes.mensaje}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
+
+                    {/* Standard Stats (fallback if no gamification) */}
+                    {!hasGamification && (
+                        <>
+                            <View style={styles.scoreCard}>
+                                <Text style={styles.scoreLabel}>Puntuación</Text>
+                                <Text style={styles.scoreValue}>+{scoreEarned}</Text>
+                            </View>
+
+                            <View style={styles.statsGrid}>
+                                <View style={styles.statCard}>
+                                    <Text style={styles.statValue}>{accuracy.toFixed(1)}%</Text>
+                                    <Text style={styles.statLabel}>Precisión</Text>
+                                </View>
+                                <View style={styles.statCard}>
+                                    <Text style={[styles.statValue, { color: '#34C759' }]}>
+                                        {correctAnswers}
+                                    </Text>
+                                    <Text style={styles.statLabel}>Correctas</Text>
+                                </View>
+                                <View style={styles.statCard}>
+                                    <Text style={[styles.statValue, { color: '#FF3B30' }]}>
+                                        {incorrectAnswers}
+                                    </Text>
+                                    <Text style={styles.statLabel}>Incorrectas</Text>
+                                </View>
+                            </View>
+                        </>
+                    )}
+
+                    {/* Action Buttons */}
+                    <View style={styles.actionsSection}>
+                        <TouchableOpacity
+                            style={styles.primaryButton}
+                            onPress={() => router.replace('/')}
+                        >
+                            <LinearGradient
+                                colors={['#4facfe', '#00f2fe']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.buttonGradient}
+                            >
+                                <Text style={styles.primaryButtonText}>Continuar</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        {hasGamification && (
+                            <TouchableOpacity
+                                style={styles.secondaryButton}
+                                onPress={() => router.push('/gamification-profile')}
+                            >
+                                <Text style={styles.secondaryButtonText}>Ver Perfil Completo</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity
+                            style={styles.tertiaryButton}
+                            onPress={() => router.push('/stats')}
+                        >
+                            <Text style={styles.tertiaryButtonText}>Estadísticas</Text>
+                        </TouchableOpacity>
                     </View>
+                </ScrollView>
+            </LinearGradient>
 
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#FF3B30' }]}>{incorrectAnswers}</Text>
-                        <Text style={styles.statLabel}>Incorrect</Text>
-                    </View>
-                </View>
+            {/* Modals */}
+            {hasGamification && gamificationRewards.progreso.hubo_levelup && (
+                <LevelUpModal
+                    visible={showLevelUpModal}
+                    oldLevel={gamificationRewards.progreso.nivel_jugador - 1}
+                    newLevel={gamificationRewards.progreso.nivel_jugador}
+                    pdReward={gamificationRewards.recompensas.pd.bonus_levelup}
+                    onClose={handleLevelUpClose}
+                />
+            )}
 
-                {/* Feedback */}
-                <View style={styles.feedbackCard}>
-                    <Text style={styles.feedbackTitle}>Your Performance</Text>
-                    <Text style={styles.feedbackText}>
-                        {accuracyNum >= 90 && "Excellent work! Your difficulty will increase to keep challenging you."}
-                        {accuracyNum >= 70 && accuracyNum < 90 && "You're doing great! Keep up the good work."}
-                        {accuracyNum >= 50 && accuracyNum < 70 && "Good job! A bit more practice and you'll master these."}
-                        {accuracyNum < 50 && "Don't give up! The difficulty will adjust to help you improve."}
-                    </Text>
-                </View>
-
-                {/* Action Buttons */}
-                <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={() => router.replace('/')}
-                >
-                    <Text style={styles.primaryButtonText}>Back to Home</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={() => router.push('/stats')}
-                >
-                    <Text style={styles.secondaryButtonText}>View Statistics</Text>
-                </TouchableOpacity>
-            </ScrollView>
+            {hasGamification && unlockedOperations.length > 0 && (
+                <UnlockAnimation
+                    visible={showUnlockModal}
+                    operationsUnlocked={unlockedOperations}
+                    onClose={() => setShowUnlockModal(false)}
+                />
+            )}
         </View>
     );
 }
@@ -91,11 +302,14 @@ export default function ResultsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F7',
+    },
+    gradient: {
+        flex: 1,
     },
     content: {
         padding: 20,
         paddingTop: 60,
+        paddingBottom: 40,
     },
     header: {
         alignItems: 'center',
@@ -108,28 +322,107 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 32,
         fontWeight: 'bold',
+        marginBottom: 8,
+    },
+    subtitle: {
+        fontSize: 18,
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontWeight: '500',
+    },
+    rewardsSection: {
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        marginBottom: 16,
+    },
+    progressSection: {
+        marginBottom: 24,
+    },
+    progressCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+    },
+    progressRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    progressLabel: {
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.8)',
+    },
+    progressValue: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#FFD700',
+    },
+    levelUpHint: {
+        fontSize: 13,
+        color: '#4facfe',
+        marginTop: 8,
+        fontStyle: 'italic',
+    },
+    statsRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16,
+    },
+    statMini: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 12,
+        padding: 12,
+        alignItems: 'center',
+    },
+    statMiniValue: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        marginBottom: 4,
+    },
+    statMiniLabel: {
+        fontSize: 11,
+        color: 'rgba(255, 255, 255, 0.7)',
+    },
+    pendingItemsCard: {
+        backgroundColor: 'rgba(255, 149, 0, 0.2)',
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 149, 0, 0.4)',
+    },
+    pendingTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#FFA500',
+        marginBottom: 6,
+    },
+    pendingText: {
+        fontSize: 13,
+        color: 'rgba(255, 255, 255, 0.8)',
+        lineHeight: 18,
     },
     scoreCard: {
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         borderRadius: 16,
         padding: 32,
         alignItems: 'center',
         marginBottom: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
     },
     scoreLabel: {
         fontSize: 16,
-        color: '#666',
+        color: 'rgba(255, 255, 255, 0.7)',
         marginBottom: 8,
     },
     scoreValue: {
         fontSize: 48,
         fontWeight: 'bold',
-        color: '#007AFF',
+        color: '#4facfe',
     },
     statsGrid: {
         flexDirection: 'row',
@@ -138,71 +431,64 @@ const styles = StyleSheet.create({
     },
     statCard: {
         flex: 1,
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         borderRadius: 12,
         padding: 20,
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
     },
     statValue: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#007AFF',
+        color: '#FFFFFF',
         marginBottom: 4,
     },
     statLabel: {
         fontSize: 12,
-        color: '#999',
+        color: 'rgba(255, 255, 255, 0.7)',
     },
-    feedbackCard: {
-        backgroundColor: 'white',
-        borderRadius: 16,
-        padding: 24,
-        marginBottom: 32,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    feedbackTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 12,
-    },
-    feedbackText: {
-        fontSize: 16,
-        color: '#666',
-        lineHeight: 24,
+    actionsSection: {
+        gap: 12,
     },
     primaryButton: {
-        backgroundColor: '#007AFF',
         borderRadius: 12,
-        padding: 18,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    buttonGradient: {
+        paddingVertical: 18,
         alignItems: 'center',
-        marginBottom: 12,
     },
     primaryButtonText: {
-        color: 'white',
+        color: '#FFFFFF',
         fontSize: 18,
-        fontWeight: '600',
+        fontWeight: 'bold',
     },
     secondaryButton: {
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         borderRadius: 12,
-        padding: 18,
+        paddingVertical: 18,
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#007AFF',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     secondaryButtonText: {
-        color: '#007AFF',
-        fontSize: 18,
+        color: '#FFFFFF',
+        fontSize: 16,
         fontWeight: '600',
+    },
+    tertiaryButton: {
+        backgroundColor: 'transparent',
+        borderRadius: 12,
+        paddingVertical: 16,
+        alignItems: 'center',
+    },
+    tertiaryButtonText: {
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontSize: 16,
+        fontWeight: '500',
     },
 });
