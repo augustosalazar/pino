@@ -1,0 +1,14 @@
+// Gamification Components Barrel Export
+
+export { ProgressBar } from './ProgressBar';
+export { StatCard } from './StatCard';
+export { LevelBadge } from './LevelBadge';
+export { OperationCard } from './OperationCard';
+export { StreakIndicator } from './StreakIndicator';
+
+// Re-export default exports
+export { default as ProgressBarDefault } from './ProgressBar';
+export { default as StatCardDefault } from './StatCard';
+export { default as LevelBadgeDefault } from './LevelBadge';
+export { default as OperationCardDefault } from './OperationCard';
+export { default as StreakIndicatorDefault } from './StreakIndicator';
