@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import gamificationService from '../services/gamification/GamificationService';
 import { GamificationProfile } from '../services/gamification/types';
-import { LevelBadge, StreakIndicator, OperationCard } from '../components/gamification';
+import { LevelBadge, StreakIndicator } from '../components/gamification';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -62,6 +62,36 @@ export default function HomeScreen() {
 
     const handleLogout = async () => {
         await logout();
+    };
+
+    const getOperationIcon = (operacion: string) => {
+        switch (operacion) {
+            case 'suma': return '➕';
+            case 'resta': return '➖';
+            case 'mult': return '✖️';
+            case 'div': return '➗';
+            default: return '🔢';
+        }
+    };
+
+    const getOperationName = (operacion: string) => {
+        switch (operacion) {
+            case 'suma': return 'Suma';
+            case 'resta': return 'Resta';
+            case 'mult': return 'Mult.';
+            case 'div': return 'Div.';
+            default: return operacion;
+        }
+    };
+
+    const getOperationGradient = (operacion: string): [string, string] => {
+        switch (operacion) {
+            case 'suma': return ['rgba(67, 233, 123, 0.3)', 'rgba(56, 249, 215, 0.3)'];
+            case 'resta': return ['rgba(250, 112, 154, 0.3)', 'rgba(254, 225, 64, 0.3)'];
+            case 'mult': return ['rgba(79, 172, 254, 0.3)', 'rgba(0, 242, 254, 0.3)'];
+            case 'div': return ['rgba(245, 93, 251, 0.3)', 'rgba(245, 87, 108, 0.3)'];
+            default: return ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)'];
+        }
     };
 
     // Redirect admin users
@@ -183,9 +213,29 @@ export default function HomeScreen() {
                 {profile && (
                     <View style={styles.operationsSection}>
                         <Text style={styles.sectionTitle}>Tus Operaciones</Text>
-                        {profile.operaciones.map((op) => (
-                            <OperationCard key={op.operacion} operation={op} />
-                        ))}
+
+                        <View style={styles.operationsGrid}>
+                            {profile.operaciones.map((op) => (
+                                <View key={op.operacion} style={styles.operationCard}>
+                                    <LinearGradient
+                                        colors={getOperationGradient(op.operacion)}
+                                        style={styles.operationGradient}
+                                    >
+                                        {!op.unlocked && (
+                                            <View style={styles.lockedOverlay}>
+                                                <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.8)" />
+                                            </View>
+                                        )}
+                                        <Text style={styles.operationIcon}>{getOperationIcon(op.operacion)}</Text>
+                                        <Text style={styles.operationName}>{getOperationName(op.operacion)}</Text>
+                                        <View style={styles.operationStats}>
+                                            <Text style={styles.operationLevel}>Nv. {op.nivel_dominio}</Text>
+                                            <Text style={styles.operationPD}>{op.pd_operacion} PD</Text>
+                                        </View>
+                                    </LinearGradient>
+                                </View>
+                            ))}
+                        </View>
                     </View>
                 )}
 
@@ -284,6 +334,15 @@ const styles = StyleSheet.create({
     playText: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' },
     operationsSection: { marginBottom: 24 },
     sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 16 },
+    operationsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    operationCard: { width: '48%', borderRadius: 12, overflow: 'hidden' },
+    operationGradient: { padding: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)', position: 'relative' },
+    lockedOverlay: { position: 'absolute', top: 8, right: 8, zIndex: 1 },
+    operationIcon: { fontSize: 32, marginBottom: 8 },
+    operationName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF', marginBottom: 8 },
+    operationStats: { flexDirection: 'row', gap: 8 },
+    operationLevel: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)' },
+    operationPD: { fontSize: 12, color: '#FFD700', fontWeight: '600' },
     quickAccess: { marginBottom: 24 },
     accessGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     accessCard: { width: '48%', borderRadius: 12, overflow: 'hidden' },
