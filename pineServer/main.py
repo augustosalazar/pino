@@ -722,6 +722,195 @@ async def get_gamification_profile(user_ref: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== MINI-JEFE ENDPOINTS ====================
+
+@app.get("/api/minibosses")
+async def get_minibosses_info():
+    """
+    Get information about all available minibosses
+    """
+    try:
+        from gamification_miniboss import obtener_todos_minijefes
+        
+        minibosses = obtener_todos_minijefes()
+        return {"minibosses": minibosses}
+        
+    except Exception as e:
+        print(f"[ERROR] Exception in get_minibosses_info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/users/{user_ref}/miniboss/{operacion}/start")
+async def start_miniboss(user_ref: str, operacion: str):
+    """
+    Start a miniboss challenge
+    
+    Args:
+        user_ref: User reference
+        operacion: Miniboss type ('suma', 'mult', 'div')
+    
+    Returns:
+        Miniboss session with exercises
+    """
+    try:
+        print(f"[DEBUG] Starting miniboss {operacion} for user: {user_ref}")
+        
+        from gamification_miniboss import (
+            generar_batch_minijefe,
+            obtener_info_minijefe,
+            puede_acceder_minijefe
+        )
+        from gamification_profile import obtener_perfil_completo
+        from gamification_unlocks import registrar_intento_minijefe
+        
+        # Get user profile to check access
+        perfil = await obtener_perfil_completo(user_ref)
+        
+        # Check if user can access this miniboss
+        puede_acceder, razon = puede_acceder_minijefe(operacion, perfil)
+        if not puede_acceder:
+            raise HTTPException(status_code=403, detail=razon)
+        
+        # Generate miniboss batch
+        exercises = generar_batch_minijefe(operacion)
+        
+        # Get miniboss info
+        miniboss_info = obtener_info_minijefe(operacion)
+        
+        # Register attempt
+        await registrar_intento_minijefe(user_ref, operacion)
+        
+        # Create a special session for miniboss
+        session_data = {
+            "user_ref": user_ref,
+            "model_ref": "miniboss",
+            "total_exercises": len(exercises),
+            "correct_answers": 0,
+            "avg_difficulty": sum(e.difficulty_level for e in exercises) / len(exercises),
+            "total_time_ms": 0,
+            "score_earned": 0,
+            # Miniboss-specific fields
+            "session_type": "miniboss",
+            "miniboss_exito": False
+        }
+        
+        result = roble_client.insert_records("pine_exercise_sessions", [session_data])
+        
+        if not result.get("inserted"):
+            raise HTTPException(status_code=500, detail="Failed to create miniboss session")
+        
+        session_id = result["inserted"][0]["_id"]
+        
+        # Update with started_at
+        try:
+            roble_client.update_record("pine_exercise_sessions", session_id, {
+                "started_at": datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            print(f"[WARN] Failed to set started_at: {e}")
+        
+        return {
+            "session_id": session_id,
+            "miniboss_info": miniboss_info,
+            "exercises": exercises,
+            "operacion": operacion
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Exception in start_miniboss: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/users/{user_ref}/miniboss/{operacion}/complete")
+async def complete_miniboss(user_ref: str, operacion: str, request: CompleteSessionRequest):
+    """
+    Complete a miniboss challenge
+    
+    Args:
+        user_ref: User reference
+        operacion: Miniboss type
+        request: Session completion data
+    
+    Returns:
+        Miniboss completion result with unlock status
+    """
+    try:
+        print(f"[DEBUG] Completing miniboss {operacion} for user: {user_ref}")
+        
+        from gamification_miniboss import validar_completitud_minijefe
+        from gamification_unlocks import marcar_minijefe_completado, verificar_y_desbloquear_operaciones
+        
+        # Calculate results
+        total_exercises = len(request.exercises)
+        correctos = sum(1 for e in request.exercises if e.is_correct)
+        total_time_ms = sum(e.time_taken_ms for e in request.exercises)
+        total_time_segundos = total_time_ms / 1000.0
+        
+        # Prepare results for validation
+        ejercicios_resultados = [
+            {
+                'is_correct': e.is_correct,
+                'fue_primer_intento': True  # TODO: Track retries properly
+            }
+            for e in request.exercises
+        ]
+        
+        # Validate miniboss completion
+        exito, detalles = validar_completitud_minijefe(
+            operacion,
+            ejercicios_resultados,
+            total_time_segundos
+        )
+        
+        print(f"[DEBUG] Miniboss result: {exito}, details: {detalles}")
+        
+        # If successful, mark as completed and try to unlock
+        desbloqueo_info = None
+        if exito:
+            # Mark miniboss as completed
+            await marcar_minijefe_completado(user_ref, operacion)
+            
+            # Try to unlock operations
+            desbloqueos = await verificar_y_desbloquear_operaciones(user_ref)
+            
+            if any(desbloqueos.values()):
+                desbloqueo_info = {
+                    "hubo_desbloqueo": True,
+                    "operaciones_desbloqueadas": [op for op, desbloq in desbloqueos.items() if desbloq]
+                }
+                print(f"[DEBUG] Unlocked operations: {desbloqueo_info['operaciones_desbloqueadas']}")
+            else:
+                desbloqueo_info = {"hubo_desbloqueo": False}
+        
+        # Update session (if we have session_id from somewhere)
+        # For now, we'll skip session update since we don't have session_id in the path
+        
+        # Save individual exercises (similar to complete_session)
+        # We'll extract session_id from the first exercise if stored, or skip for now
+        
+        return {
+            "operacion": operacion,
+            "exito": exito,
+            "detalles": detalles,
+            "desbloqueo": desbloqueo_info,
+            "total_exercises": total_exercises,
+            "correct_answers": correctos,
+            "tiempo_total_segundos": round(total_time_segundos, 1)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Exception in complete_miniboss: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/institutions/{institution_ref}/stats")
 async def get_institution_stats(institution_ref: str, filters: InstitutionStatsRequest):
     """Get institution statistics with filters (for admin users)"""

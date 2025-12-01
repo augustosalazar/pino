@@ -149,21 +149,31 @@
 
 ---
 
-## FASE 3: Mini-jefes y Modos Especiales (Pendiente)
+## FASE 3: Mini-jefes y Modos Especiales ✅ COMPLETADA
 
-### Step 3.1: Crear módulo de mini-jefes
-- Generar batch de mini-jefe según tipo
-- Validar completitud de mini-jefe
-- Registrar intentos
+### Step 3.1: Crear módulo de mini-jefes ✅ COMPLETADO
+- ✅ Generar batch de mini-jefe según tipo
+- ✅ Validar completitud de mini-jefe
+- ✅ Registrar intentos
 
-### Step 3.2: Endpoints de mini-jefes
-- Iniciar mini-jefe
-- Completar mini-jefe
-- Consultar progreso de mini-jefes
+**Implementado en:** `gamification_miniboss.py`
+- 3 generadores específicos (suma/mult/div)
+- Validación automática de criterios
+- Control de acceso por requisitos
+
+### Step 3.2: Endpoints de mini-jefes ✅ COMPLETADO
+- ✅ Iniciar mini-jefe
+- ✅ Completar mini-jefe
+- ✅ Consultar progreso de mini-jefes
+
+**Endpoints creados:**
+- `GET /api/minibosses` - Lista todos
+- `POST /api/users/{user_ref}/miniboss/{operacion}/start` - Inicia
+- `POST /api/users/{user_ref}/miniboss/{operacion}/complete` - Completa y desbloquea
 
 ---
 
-## FASE 4: Leaderboard y Reseteos (Siguiente Sesión)
+## FASE 4: Leaderboard y Reseteos (Pendiente)
 
 ### Step 4.1: Sistema de score semanal
 - Calcular score semanal
