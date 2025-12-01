@@ -215,26 +215,31 @@ export default function HomeScreen() {
                         <Text style={styles.sectionTitle}>Tus Operaciones</Text>
 
                         <View style={styles.operationsGrid}>
-                            {profile.operaciones.map((op) => (
-                                <View key={op.operacion} style={styles.operationCard}>
-                                    <LinearGradient
-                                        colors={getOperationGradient(op.operacion)}
-                                        style={styles.operationGradient}
-                                    >
-                                        {!op.unlocked && (
-                                            <View style={styles.lockedOverlay}>
-                                                <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.8)" />
+                            {[...profile.operaciones]
+                                .sort((a, b) => {
+                                    const order = ['suma', 'resta', 'mult', 'div'];
+                                    return order.indexOf(a.operacion) - order.indexOf(b.operacion);
+                                })
+                                .map((op) => (
+                                    <View key={op.operacion} style={styles.operationCard}>
+                                        <LinearGradient
+                                            colors={getOperationGradient(op.operacion)}
+                                            style={styles.operationGradient}
+                                        >
+                                            {!op.unlocked && (
+                                                <View style={styles.lockedOverlay}>
+                                                    <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.8)" />
+                                                </View>
+                                            )}
+                                            <Text style={styles.operationIcon}>{getOperationIcon(op.operacion)}</Text>
+                                            <Text style={styles.operationName}>{getOperationName(op.operacion)}</Text>
+                                            <View style={styles.operationStats}>
+                                                <Text style={styles.operationLevel}>Nv. {op.nivel_dominio}</Text>
+                                                <Text style={styles.operationPD}>{op.pd_operacion} PD</Text>
                                             </View>
-                                        )}
-                                        <Text style={styles.operationIcon}>{getOperationIcon(op.operacion)}</Text>
-                                        <Text style={styles.operationName}>{getOperationName(op.operacion)}</Text>
-                                        <View style={styles.operationStats}>
-                                            <Text style={styles.operationLevel}>Nv. {op.nivel_dominio}</Text>
-                                            <Text style={styles.operationPD}>{op.pd_operacion} PD</Text>
-                                        </View>
-                                    </LinearGradient>
-                                </View>
-                            ))}
+                                        </LinearGradient>
+                                    </View>
+                                ))}
                         </View>
                     </View>
                 )}
