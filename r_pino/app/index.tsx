@@ -1,520 +1,303 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    ActivityIndicator,
+    ScrollView,
+    RefreshControl,
+    Alert,
+} from 'react-native';
 import { useRouter, Redirect } from 'expo-router';
-import { useState, useEffect } from 'react';
-import { PineServerAPI } from '../services/api';
-import { StatsResponse } from '../services/types';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { AdaptiveContainer } from '../components/AdaptiveContainer';
-import { useResponsive } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
-import { GamificationWidget } from '../components/GamificationWidget';
+import { useAuth } from '../contexts/AuthContext';
+import gamificationService from '../services/gamification/GamificationService';
+import { GamificationProfile } from '../services/gamification/types';
+import { LevelBadge, StreakIndicator, OperationCard } from '../components/gamification';
 
 export default function HomeScreen() {
     const router = useRouter();
     const { user, logout } = useAuth();
-    const { theme, isDark } = useTheme();
-    const { isTabletOrDesktop, isDesktop } = useResponsive();
-    const [stats, setStats] = useState<StatsResponse | null>(null);
+
+    const [profile, setProfile] = useState<GamificationProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (user) {
-            loadUserStats();
-        } else {
-            setLoading(false);
-        }
-    }, [user]);
-
-    const loadUserStats = async () => {
+    const loadProfile = useCallback(async () => {
         if (!user) return;
 
         try {
             setError(null);
-            // Ensure user exists in pine_users (double check)
-            await PineServerAPI.ensureUser(user.id, user.email, user.name);
-
-            // Load stats
-            const userStats = await PineServerAPI.getUserStats(user.id);
-            setStats(userStats);
+            const profileData = await gamificationService.getProfile(user.id);
+            setProfile(profileData);
         } catch (error) {
-            console.error('Failed to load stats:', error);
-            setError('Failed to load statistics. Please try again.');
+            console.error('Error loading profile:', error);
+            setError('No se pudo cargar tu perfil');
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
 
-    const handleStartSession = () => {
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadProfile();
+        setRefreshing(false);
+    }, [loadProfile]);
+
+    useEffect(() => {
+        if (user) {
+            loadProfile();
+        } else {
+            setLoading(false);
+        }
+    }, [user, loadProfile]);
+
+    const handleStartPractice = () => {
         if (!user) return;
-        router.push({
-            pathname: '/session',
-            params: { userRef: user.id }
-        });
-    };
-
-    const handleViewStats = () => {
-        router.push('/stats');
+        router.push({ pathname: '/session', params: { userRef: user.id } });
     };
 
     const handleLogout = async () => {
-        await logout();
+        Alert.alert(
+            'Cerrar Sesión',
+            '¿Estás seguro que quieres salir?',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Salir', style: 'destructive', onPress: async () => await logout() },
+            ]
+        );
     };
 
-    // Redirect admin users directly to admin tabs
+    // Redirect admin users
     if (!loading && user?.user_type === 2) {
         return <Redirect href="/(admin)/stats" />;
     }
 
-    if (loading && !stats) {
+    if (loading && !profile) {
         return (
-            <View style={[styles.container, { backgroundColor: theme.background }]}>
-                <ActivityIndicator size="large" color={theme.primary} />
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#FFD700" />
+                <Text style={styles.loadingText}>Cargando...</Text>
             </View>
         );
     }
 
     if (error) {
         return (
-            <View style={[styles.container, { backgroundColor: theme.background }]}>
-                <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
-                <TouchableOpacity style={[styles.retryButton, { backgroundColor: theme.primary }]} onPress={loadUserStats}>
-                    <Text style={styles.retryButtonText}>Retry</Text>
+            <View style={styles.loadingContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadProfile}>
+                    <Text style={styles.retryButtonText}>Reintentar</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
     return (
-        <AdaptiveContainer centerOnDesktop={true} maxWidth={1000}>
-            <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.contentContainer}>
-                <StatusBar style={theme.statusBarStyle} />
+        <LinearGradient colors={['#1a1a2e', '#16213e', '#0f3460']} style={styles.container}>
+            <StatusBar style="light" />
 
-                {/* Modern App Bar */}
-                <View style={[styles.appBar, { backgroundColor: theme.primary }]}>
-                    <View style={styles.appBarContent}>
-                        <View style={styles.brandContainer}>
-                            <View style={styles.logoContainer}>
-                                <Ionicons name="calculator" size={28} color="#FFFFFF" />
-                            </View>
-                            <View>
-                                <Text style={styles.appName}>Pino</Text>
-                                <Text style={styles.appTagline}>{user?.institution_name || 'Math Training'}</Text>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFD700" />
+                }
+            >
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerTop}>
+                        <View style={styles.userInfo}>
+                            <Ionicons name="person-circle" size={40} color="#FFD700" />
+                            <View style={styles.userText}>
+                                <Text style={styles.greeting}>¡Hola!</Text>
+                                <Text style={styles.username}>{user?.name?.split(' ')[0] || 'Usuario'}</Text>
                             </View>
                         </View>
 
-                        <View style={styles.userSection}>
-                            <TouchableOpacity onPress={() => router.push('/settings')} style={styles.iconButton}>
-                                <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+                        <View style={styles.headerActions}>
+                            <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/settings')}>
+                                <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
                             </TouchableOpacity>
-                            <View style={styles.welcomeContainer}>
-                                <Ionicons name="person-circle-outline" size={20} color="#FFFFFF" />
-                                <Text style={styles.welcomeText}>Hi, {user?.name?.split(' ')[0] || 'User'}!</Text>
-                            </View>
-                            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                                <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+                            <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
+                                <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
                             </TouchableOpacity>
                         </View>
                     </View>
+
+                    {profile && (
+                        <View style={styles.headerStats}>
+                            <LevelBadge level={profile.perfil.nivel_jugador} size="large" showName={false} />
+                            <View style={styles.levelInfo}>
+                                <Text style={styles.levelText}>Nivel {profile.perfil.nivel_jugador}</Text>
+                                <View style={styles.xpBar}>
+                                    <View
+                                        style={[
+                                            styles.xpFill,
+                                            {
+                                                width: `${gamificationService.getLevelProgress(
+                                                    profile.perfil.xp_total,
+                                                    profile.perfil.nivel_jugador
+                                                )}%`,
+                                            },
+                                        ]}
+                                    />
+                                </View>
+                                <Text style={styles.xpText}>{profile.perfil.xp_total} XP</Text>
+                            </View>
+                        </View>
+                    )}
                 </View>
 
-                {/* Gamification Widget */}
-                {user && (
-                    <GamificationWidget
-                        userRef={user.id}
-                        compact={!isTabletOrDesktop}
-                    />
+                {/* Quick Stats */}
+                {profile && (
+                    <View style={styles.quickStats}>
+                        <View style={styles.statBox}>
+                            <LinearGradient colors={['#43e97b', '#38f9d7']} style={styles.statGradient}>
+                                <Text style={styles.statEmoji}>💎</Text>
+                                <Text style={styles.statValue}>{profile.perfil.pp_total}</Text>
+                                <Text style={styles.statLabel}>PP</Text>
+                            </LinearGradient>
+                        </View>
+
+                        <View style={styles.statBox}>
+                            <LinearGradient colors={['#fa709a', '#fee140']} style={styles.statGradient}>
+                                <Text style={styles.statEmoji}>🏆</Text>
+                                <Text style={styles.statValue}>{profile.perfil.pd_global}</Text>
+                                <Text style={styles.statLabel}>PD</Text>
+                            </LinearGradient>
+                        </View>
+
+                        <View style={styles.statBox}>
+                            <LinearGradient colors={['#f093fb', '#f5576c']} style={styles.statGradient}>
+                                <StreakIndicator streakDays={profile.perfil.racha_dias} compact={true} />
+                            </LinearGradient>
+                        </View>
+                    </View>
                 )}
 
-                {/* Main Content */}
-                <View style={styles.mainContentWrapper}>
-                    {/* Main content grid for desktop */}
-                    <View style={[styles.mainContent, isDesktop && styles.mainContentDesktop]}>
-                        {/* Score Card */}
-                        <View style={[styles.scoreCard, { backgroundColor: theme.cardBackground }, isDesktop && styles.scoreCardDesktop]}>
-                            <Text style={[styles.scoreLabel, { color: theme.textSecondary }]}>Current Score</Text>
-                            <Text style={[styles.scoreValue, { color: theme.primary }]}>{stats?.current_score || 0}</Text>
+                {/* Main Action Button */}
+                <TouchableOpacity style={styles.playButton} onPress={handleStartPractice} activeOpacity={0.8}>
+                    <LinearGradient colors={['#4facfe', '#00f2fe']} style={styles.playGradient}>
+                        <Ionicons name="play-circle" size={32} color="#FFFFFF" />
+                        <Text style={styles.playText}>PRACTICAR AHORA</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
 
-                            {stats && (
-                                <View style={styles.statsRow}>
-                                    <View style={styles.statItem}>
-                                        <Text style={[styles.statValue, { color: theme.text }]}>{stats.total_sessions}</Text>
-                                        <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Sessions</Text>
-                                    </View>
-                                    <View style={[styles.statDivider, { backgroundColor: theme.divider }]} />
-                                    <View style={styles.statItem}>
-                                        <Text style={[styles.statValue, { color: theme.text }]}>{stats.accuracy.toFixed(1)}%</Text>
-                                        <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Accuracy</Text>
-                                    </View>
-                                    <View style={[styles.statDivider, { backgroundColor: theme.divider }]} />
-                                    <View style={styles.statItem}>
-                                        <Text style={[styles.statValue, { color: theme.text }]}>{stats.total_exercises}</Text>
-                                        <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Exercises</Text>
-                                    </View>
-                                </View>
-                            )}
-                        </View>
-
-                        {/* Difficulty Preview */}
-                        {stats && (
-                            <View style={[styles.difficultyCard, { backgroundColor: theme.cardBackground }, isDesktop && styles.difficultyCardDesktop]}>
-                                <Text style={[styles.cardTitle, { color: theme.text }]}>Current Difficulty</Text>
-                                <View style={styles.difficultyGrid}>
-                                    {Object.entries(stats.difficulty_by_operator).map(([op, diff]) => (
-                                        <View key={op} style={styles.difficultyItem}>
-                                            <Text style={[styles.operatorIcon, { color: theme.primary }]}>{op}</Text>
-                                            <Text style={[styles.difficultyValue, { color: theme.textSecondary }]}>{diff.toFixed(1)}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-                        )}
+                {/* Operations Section */}
+                {profile && (
+                    <View style={styles.operationsSection}>
+                        <Text style={styles.sectionTitle}>Tus Operaciones</Text>
+                        {profile.operaciones.map((op) => (
+                            <OperationCard key={op.operacion} operation={op} />
+                        ))}
                     </View>
+                )}
 
-                    {/* Action Buttons */}
-                    <View style={[styles.buttonContainer, isDesktop && styles.buttonContainerDesktop]}>
+                {/* Quick Access */}
+                <View style={styles.quickAccess}>
+                    <Text style={styles.sectionTitle}>Acceso Rápido</Text>
+
+                    <View style={styles.accessGrid}>
                         <TouchableOpacity
-                            style={[styles.primaryButton, { backgroundColor: theme.primary }, isDesktop && styles.buttonDesktop]}
-                            onPress={handleStartSession}
+                            style={styles.accessCard}
+                            onPress={() => router.push('/gamification-profile')}
+                            activeOpacity={0.7}
                         >
-                            <Text style={styles.primaryButtonText}>Start New Session</Text>
+                            <LinearGradient colors={['rgba(79, 172, 254, 0.3)', 'rgba(0, 242, 254, 0.3)']} style={styles.accessGradient}>
+                                <Text style={styles.accessIcon}>📊</Text>
+                                <Text style={styles.accessText}>Perfil</Text>
+                            </LinearGradient>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.secondaryButton, { backgroundColor: theme.cardBackground, borderColor: theme.primary }, isDesktop && styles.buttonDesktop]}
-                            onPress={handleViewStats}
+                            style={styles.accessCard}
+                            onPress={() => router.push('/miniboss')}
+                            activeOpacity={0.7}
                         >
-                            <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>View Statistics</Text>
+                            <LinearGradient colors={['rgba(245, 93, 251, 0.3)', 'rgba(245, 87, 108, 0.3)']} style={styles.accessGradient}>
+                                <Text style={styles.accessIcon}>🐉</Text>
+                                <Text style={styles.accessText}>Mini-jefes</Text>
+                            </LinearGradient>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.tertiaryButton, { backgroundColor: theme.cardBackground, borderColor: theme.border }, isDesktop && styles.buttonDesktop]}
-                            onPress={() => router.push('/profile')}
+                            style={styles.accessCard}
+                            onPress={() => router.push('/leaderboard')}
+                            activeOpacity={0.7}
                         >
-                            <Ionicons name="person-outline" size={20} color={theme.primary} style={{ marginRight: 8 }} />
-                            <Text style={[styles.tertiaryButtonText, { color: theme.primary }]}>Edit Profile</Text>
+                            <LinearGradient colors={['rgba(255, 215, 0, 0.3)', 'rgba(255, 165, 0, 0.3)']} style={styles.accessGradient}>
+                                <Text style={styles.accessIcon}>🏆</Text>
+                                <Text style={styles.accessText}>Ranking</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.accessCard}
+                            onPress={() => router.push('/stats')}
+                            activeOpacity={0.7}
+                        >
+                            <LinearGradient colors={['rgba(102, 126, 234, 0.3)', 'rgba(118, 75, 162, 0.3)']} style={styles.accessGradient}>
+                                <Text style={styles.accessIcon}>📈</Text>
+                                <Text style={styles.accessText}>Estadísticas</Text>
+                            </LinearGradient>
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                {/* Institution Info */}
+                {user?.institution_name && (
+                    <View style={styles.institutionInfo}>
+                        <Text style={styles.institutionText}>{user.institution_name}</Text>
+                    </View>
+                )}
             </ScrollView>
-        </AdaptiveContainer>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    contentContainer: {
-        paddingBottom: 20,
-    },
-    // Modern App Bar Styles
-    appBar: {
-        paddingTop: 50,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        marginBottom: 24,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    appBarContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    brandContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    logoContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    appName: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        letterSpacing: 0.5,
-    },
-    appTagline: {
-        fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.8)',
-        marginTop: -2,
-    },
-    userSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    iconButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    welcomeContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-    },
-    welcomeText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    logoutButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    mainContentWrapper: {
-        paddingHorizontal: 20,
-    },
-    scoreCard: {
-        borderRadius: 16,
-        padding: 24,
-        marginBottom: 16,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    scoreLabel: {
-        fontSize: 14,
-        marginBottom: 8,
-    },
-    scoreValue: {
-        fontSize: 48,
-        fontWeight: 'bold',
-        marginBottom: 20,
-    },
-    statsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        width: '100%',
-        justifyContent: 'space-around',
-    },
-    statItem: {
-        alignItems: 'center',
-        flex: 1,
-    },
-    statValue: {
-        fontSize: 20,
-        fontWeight: '600',
-    },
-    statLabel: {
-        fontSize: 12,
-        marginTop: 4,
-    },
-    statDivider: {
-        width: 1,
-        height: 30,
-    },
-    difficultyCard: {
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    cardTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 16,
-    },
-    difficultyGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-    },
-    difficultyItem: {
-        alignItems: 'center',
-    },
-    operatorIcon: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 8,
-    },
-    difficultyValue: {
-        fontSize: 16,
-    },
-    primaryButton: {
-        borderRadius: 12,
-        padding: 18,
-        alignItems: 'center',
-        marginBottom: 12,
-        flexDirection: 'row',
-        justifyContent: 'center',
-    },
-    primaryButtonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    secondaryButton: {
-        borderRadius: 12,
-        padding: 18,
-        alignItems: 'center',
-        borderWidth: 2,
-        marginBottom: 12,
-    },
-    secondaryButtonText: {
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    tertiaryButton: {
-        borderRadius: 12,
-        padding: 18,
-        alignItems: 'center',
-        borderWidth: 1,
-        flexDirection: 'row',
-        justifyContent: 'center',
-    },
-    tertiaryButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    errorText: {
-        fontSize: 16,
-        textAlign: 'center',
-        marginBottom: 20,
-    },
-    retryButton: {
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        marginHorizontal: 40,
-    },
-    retryButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    // Desktop responsive styles
-    mainContent: {
-        marginBottom: 24,
-    },
-    mainContentDesktop: {
-        flexDirection: 'row',
-        gap: 16,
-        alignItems: 'flex-start',
-    },
-    scoreCardDesktop: {
-        flex: 1,
-        minHeight: 250,
-    },
-    difficultyCardDesktop: {
-        flex: 1,
-    },
-    buttonContainer: {
-        gap: 12,
-    },
-    buttonContainerDesktop: {
-        flexDirection: 'row',
-        gap: 16,
-        maxWidth: 800,
-    },
-    buttonDesktop: {
-        flex: 1,
-        minWidth: 200,
-    },
-    // Admin Dashboard Styles
-    adminDashboard: {
-        flex: 1,
-        padding: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    adminWelcome: {
-        alignItems: 'center',
-        marginBottom: 32,
-        paddingHorizontal: 20,
-    },
-    adminTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#000',
-        marginTop: 16,
-        marginBottom: 8,
-    },
-    adminSubtitle: {
-        fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
-        maxWidth: 400,
-    },
-    adminMainButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#007AFF',
-        paddingVertical: 18,
-        paddingHorizontal: 32,
-        borderRadius: 16,
-        gap: 12,
-        width: '100%',
-        maxWidth: 400,
-        marginBottom: 12,
-        shadowColor: '#007AFF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    adminMainButtonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: '600',
-        flex: 1,
-        textAlign: 'center',
-    },
-    adminSecondaryButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'white',
-        paddingVertical: 16,
-        paddingHorizontal: 28,
-        borderRadius: 12,
-        gap: 8,
-        width: '100%',
-        maxWidth: 400,
-        borderWidth: 2,
-        borderColor: '#007AFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    adminSecondaryButtonText: {
-        color: '#007AFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+    container: { flex: 1 },
+    scrollContent: { padding: 20, paddingTop: 60, paddingBottom: 40 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' },
+    loadingText: { marginTop: 12, fontSize: 16, color: '#FFFFFF' },
+    errorText: { fontSize: 16, color: '#FF3B30', marginBottom: 20, textAlign: 'center' },
+    retryButton: { backgroundColor: '#4facfe', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+    retryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+    header: { marginBottom: 24 },
+    headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    userInfo: { flexDirection: 'row', alignItems: 'center' },
+    userText: { marginLeft: 12 },
+    greeting: { fontSize: 14, color: 'rgba(255, 255, 255, 0.7)' },
+    username: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' },
+    headerActions: { flexDirection: 'row', gap: 12 },
+    iconButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.1)', justifyContent: 'center', alignItems: 'center' },
+    headerStats: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 16, padding: 16 },
+    levelInfo: { flex: 1, marginLeft: 16 },
+    levelText: { fontSize: 16, fontWeight: 'bold', color: '#FFD700', marginBottom: 8 },
+    xpBar: { height: 8, backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
+    xpFill: { height: '100%', backgroundColor: '#4facfe', borderRadius: 4 },
+    xpText: { fontSize: 12, color: 'rgba(255, 255, 255, 0.7)' },
+    quickStats: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+    statBox: { flex: 1, borderRadius: 12, overflow: 'hidden' },
+    statGradient: { padding: 16, alignItems: 'center' },
+    statEmoji: { fontSize: 24, marginBottom: 4 },
+    statValue: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 2 },
+    statLabel: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)' },
+    playButton: { borderRadius: 16, overflow: 'hidden', marginBottom: 24, shadowColor: '#4facfe', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 8 },
+    playGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 12 },
+    playText: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' },
+    operationsSection: { marginBottom: 24 },
+    sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 16 },
+    quickAccess: { marginBottom: 24 },
+    accessGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    accessCard: { width: '48%', borderRadius: 12, overflow: 'hidden' },
+    accessGradient: { padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)' },
+    accessIcon: { fontSize: 32, marginBottom: 8 },
+    accessText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+    institutionInfo: { alignItems: 'center', paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)' },
+    institutionText: { fontSize: 13, color: 'rgba(255, 255, 255, 0.5)' },
 });

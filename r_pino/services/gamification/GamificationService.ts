@@ -230,6 +230,21 @@ class GamificationService {
         const entry = leaderboard.leaderboard.find((e) => e.user_ref === userRef);
         return entry ? entry.rank : null;
     }
+
+    /**
+     * Get level progress percentage (0-100)
+     */
+    getLevelProgress(currentXP: number, currentLevel: number): number {
+        // XP required formula: 50 * L^1.5
+        const xpForCurrentLevel = currentLevel > 1 ? 50 * Math.pow(currentLevel, 1.5) : 0;
+        const xpForNextLevel = 50 * Math.pow(currentLevel + 1, 1.5);
+
+        const xpInCurrentLevel = currentXP - xpForCurrentLevel;
+        const xpNeededForLevel = xpForNextLevel - xpForCurrentLevel;
+
+        const progress = (xpInCurrentLevel / xpNeededForLevel) * 100;
+        return Math.min(100, Math.max(0, progress));
+    }
 }
 
 // Export singleton instance
