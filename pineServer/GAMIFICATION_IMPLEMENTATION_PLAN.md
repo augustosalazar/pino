@@ -167,32 +167,6 @@
 - ✅ Consultar progreso de mini-jefes
 
 **Endpoints creados:**
-- `GET /api/minibosses` - Lista todos
-- `POST /api/users/{user_ref}/miniboss/{operacion}/start` - Inicia
-- `POST /api/users/{user_ref}/miniboss/{operacion}/complete` - Completa y desbloquea
-
----
-
-## FASE 4: Leaderboard y Reseteos (Pendiente)
-
-### Step 4.1: Sistema de score semanal
-- Calcular score semanal
-- Endpoint de leaderboard
-
-### Step 4.2: Tareas programadas
-- Reset diario de PP_dia
-- Reset semanal de PP_semana y PD_semana
-- Verificación de rachas
-
----
-
-## FASE 5: Testing y Refinamiento (Siguiente Sesión)
-
-### Step 5.1: Tests unitarios
-- Tests de cálculos core
-- Tests de desbloqueos
-- Tests de batch processing
-
 ### Step 5.2: Tests de integración
 - Flujo completo de usuario nuevo
 - Flujo de progresión y desbloqueos

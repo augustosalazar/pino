@@ -911,6 +911,105 @@ async def complete_miniboss(user_ref: str, operacion: str, request: CompleteSess
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== LEADERBOARD ENDPOINT ====================
+
+@app.get("/api/leaderboard/weekly")
+async def get_weekly_leaderboard(
+    institution_ref: str = None,
+    limit: int = 100
+):
+    """
+    Get weekly leaderboard based on gamification scores
+    
+    Score = 0.4 × PP_week + 0.6 × PD_week
+    
+    Args:
+        institution_ref: Optional filter by institution
+        limit: Max number of users (default 100)
+    
+    Returns:
+        Ranked list of users with scores
+    """
+    try:
+        print(f"[DEBUG] Getting weekly leaderboard, institution: {institution_ref}, limit: {limit}")
+        
+        from gamification_core import calcular_score_semanal
+        
+        # Get all gamification profiles
+        query = {}
+        profiles = roble_client.read_table("pine_user_gamification", query)
+        
+        print(f"[DEBUG] Found {len(profiles)} gamification profiles")
+        
+        # If institution filter, get users from that institution
+        user_refs_in_institution = None
+        if institution_ref:
+            users = roble_client.read_table("pine_users", {"institution_ref": institution_ref})
+            user_refs_in_institution = set(u['user_ref'] for u in users)
+            print(f"[DEBUG] Filtering by institution: {len(user_refs_in_institution)} users")
+        
+        # Calculate scores and build leaderboard
+        leaderboard_entries = []
+        
+        for profile in profiles:
+            user_ref = profile.get('user_ref')
+            
+            # Skip if not in institution filter
+            if user_refs_in_institution and user_ref not in user_refs_in_institution:
+                continue
+            
+            # Calculate weekly score
+            pp_semana = profile.get('pp_semana', 0)
+            pd_semana = profile.get('pd_semana', 0)
+            score_semanal = calcular_score_semanal(pp_semana, pd_semana)
+            
+            # Get user info
+            users = roble_client.read_table("pine_users", {"user_ref": user_ref})
+            if not users:
+                continue
+            
+            user = users[0]
+            
+            entry = {
+                "user_ref": user_ref,
+                "username": user.get('username', 'Unknown'),
+                "email": user.get('email', ''),
+                "pp_semana": pp_semana,
+                "pd_semana": pd_semana,
+                "score_semanal": round(score_semanal, 2),
+                "nivel_jugador": profile.get('nivel_jugador', 1),
+                "racha_dias": profile.get('racha_dias', 0),
+                "institution_ref": user.get('institution_ref')
+            }
+            
+            leaderboard_entries.append(entry)
+        
+        # Sort by score (descending)
+        leaderboard_entries.sort(key=lambda x: x['score_semanal'], reverse=True)
+        
+        # Add rank
+        for i, entry in enumerate(leaderboard_entries[:limit], start=1):
+            entry['rank'] = i
+        
+        # Limit results
+        top_users = leaderboard_entries[:limit]
+        
+        print(f"[DEBUG] Returning {len(top_users)} users in leaderboard")
+        
+        return {
+            "leaderboard": top_users,
+            "total_users": len(leaderboard_entries),
+            "top_count": len(top_users),
+            "institution_ref": institution_ref
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Exception in get_weekly_leaderboard: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/institutions/{institution_ref}/stats")
 async def get_institution_stats(institution_ref: str, filters: InstitutionStatsRequest):
     """Get institution statistics with filters (for admin users)"""
