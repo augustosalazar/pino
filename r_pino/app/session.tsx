@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     TextInput,
     ActivityIndicator,
-    ScrollView,
     Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -38,11 +37,7 @@ export default function SessionScreen() {
         try {
             setLoading(true);
             setError(null);
-            console.log('[SessionScreen] Starting session for user:', userRef);
-
             const response = await PineServerAPI.startSession(userRef as string, 10);
-
-            console.log('[SessionScreen] Session response:', response);
 
             if (!response || !response.exercises || response.exercises.length === 0) {
                 throw new Error('No exercises received from server');
@@ -51,8 +46,6 @@ export default function SessionScreen() {
             setSessionId(response.session_id);
             setExercises(response.exercises);
             setStartTime(Date.now());
-
-            console.log('[SessionScreen] Session started successfully with', response.exercises.length, 'exercises');
         } catch (error: any) {
             console.error('[SessionScreen] Failed to start session:', error);
             const errorMessage = error.message || 'Failed to start session. Please try again.';
@@ -66,7 +59,6 @@ export default function SessionScreen() {
     const handleMultipleChoiceAnswer = (answer: number) => {
         setSelectedOption(answer);
 
-        // Small delay to show selection before proceeding
         setTimeout(() => {
             const exercise = exercises[currentIndex];
             const timeTaken = Date.now() - startTime;
@@ -203,7 +195,8 @@ export default function SessionScreen() {
                 </Text>
             </View>
 
-            <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+            {/* Content - no ScrollView */}
+            <View style={styles.content}>
                 {/* Exercise Card */}
                 <View style={styles.exerciseCard}>
                     <LinearGradient
@@ -220,7 +213,7 @@ export default function SessionScreen() {
                             </View>
                         </View>
                         <View style={styles.difficultyBadge}>
-                            <Ionicons name="star" size={14} color="#FFD700" />
+                            <Ionicons name="star" size={12} color="#FFD700" />
                             <Text style={styles.difficultyText}>Nivel {exercise.difficulty_level.toFixed(1)}</Text>
                         </View>
                     </LinearGradient>
@@ -283,7 +276,7 @@ export default function SessionScreen() {
                         </TouchableOpacity>
                     </View>
                 )}
-            </ScrollView>
+            </View>
         </LinearGradient>
     );
 }
@@ -344,72 +337,71 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     progressContainer: {
-        padding: 20,
-        paddingTop: 60,
+        paddingHorizontal: 20,
+        paddingTop: 50,
+        paddingBottom: 16,
     },
     progressBar: {
-        height: 10,
+        height: 6,
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: 5,
+        borderRadius: 3,
         overflow: 'hidden',
-        marginBottom: 12,
+        marginBottom: 8,
     },
     progressFill: {
         height: '100%',
-        borderRadius: 5,
+        borderRadius: 3,
     },
     progressText: {
         textAlign: 'center',
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '600',
     },
     content: {
         flex: 1,
-    },
-    contentContainer: {
-        padding: 20,
-        paddingTop: 0,
+        paddingHorizontal: 16,
+        paddingBottom: 20,
+        justifyContent: 'space-between',
     },
     exerciseCard: {
-        borderRadius: 20,
+        borderRadius: 16,
         overflow: 'hidden',
-        marginBottom: 32,
     },
     exerciseGradient: {
-        padding: 32,
+        padding: 20,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     exerciseLabel: {
-        fontSize: 16,
+        fontSize: 12,
         color: 'rgba(255, 255, 255, 0.7)',
-        marginBottom: 20,
+        marginBottom: 12,
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
     expressionContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        marginBottom: 20,
+        gap: 10,
+        marginBottom: 12,
     },
     exerciseText: {
-        fontSize: 42,
+        fontSize: 32,
         fontWeight: 'bold',
         color: '#FFFFFF',
     },
     questionMark: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: '#FFD700',
         justifyContent: 'center',
         alignItems: 'center',
     },
     questionText: {
-        fontSize: 32,
+        fontSize: 24,
         fontWeight: 'bold',
         color: '#1a1a2e',
     },
@@ -418,30 +410,30 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
         backgroundColor: 'rgba(255, 215, 0, 0.2)',
-        paddingHorizontal: 16,
-        paddingVertical: 6,
-        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
     difficultyText: {
-        fontSize: 13,
+        fontSize: 11,
         color: '#FFD700',
         fontWeight: '600',
     },
     optionsContainer: {
-        gap: 14,
+        gap: 12,
     },
     optionButton: {
-        borderRadius: 16,
+        borderRadius: 12,
         overflow: 'hidden',
     },
     optionGradient: {
-        padding: 20,
+        padding: 16,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     optionText: {
-        fontSize: 30,
+        fontSize: 24,
         fontWeight: 'bold',
         color: '#FFFFFF',
     },
@@ -449,7 +441,7 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
     textInputContainer: {
-        gap: 16,
+        gap: 12,
     },
     inputWrapper: {
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -459,8 +451,8 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     textInput: {
-        padding: 24,
-        fontSize: 32,
+        padding: 20,
+        fontSize: 28,
         textAlign: 'center',
         color: '#FFFFFF',
         fontWeight: 'bold',
@@ -473,7 +465,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 18,
+        paddingVertical: 16,
         gap: 8,
     },
     submitButtonText: {
