@@ -301,8 +301,7 @@ export default function GamificationProfileScreen() {
                     </View>
                 )}
 
-                {/* Action Buttons */}
-                <View style={styles.actionsSection}>
+                {/*                 <View style={styles.actionsSection}>
                     <TouchableOpacity
                         style={[styles.actionButton, styles.primaryButton]}
                         onPress={() => {
@@ -338,7 +337,7 @@ export default function GamificationProfileScreen() {
                             <Text style={styles.actionButtonText}>Ranking</Text>
                         </LinearGradient>
                     </TouchableOpacity>
-                </View>
+                </View> */}
             </ScrollView>
         </LinearGradient>
     );
