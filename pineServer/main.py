@@ -223,33 +223,90 @@ async def start_session(request: StartSessionRequest):
     Start a new exercise session
     
     1. Get user's difficulty profile
-    2. Generate personalized exercises
-    3. Create session record
-    4. Return exercises
+    2. Get user's unlocked operations (gamification)
+    3. Generate personalized exercises (only for unlocked ops)
+    4. Create session record
+    5. Return exercises
     """
     try:
         print(f"[DEBUG] Starting session for user: {request.user_ref}")
         
-        # Get user's difficulty profiles
+        # ==================== GET UNLOCKED OPERATIONS ====================
+        # Get which operations the user has unlocked via gamification
+        from gamification_unlocks import obtener_operaciones_disponibles
+        
+        unlocked_operations_names = await obtener_operaciones_disponibles(request.user_ref)
+        print(f"[DEBUG] Unlocked operations: {unlocked_operations_names}")
+        
+        # Map Spanish names to operator symbols
+        op_name_to_symbol = {
+            'suma': '+',
+            'resta': '-',
+            'mult': '*',
+            'div': '/'
+        }
+        
+        unlocked_operators = [
+            op_name_to_symbol[op_name] 
+            for op_name in unlocked_operations_names 
+            if op_name in op_name_to_symbol
+        ]
+        
+        # Fallback: if nothing unlocked (shouldn't happen), give them addition
+        if not unlocked_operators:
+            print("[WARNING] No operations unlocked, defaulting to addition")
+            unlocked_operators = ['+']
+        
+        print(f"[DEBUG] Unlocked operator symbols: {unlocked_operators}")
+        
+        # ==================== GET GAMIFICATION PD VALUES ====================
+        # Get PD (Puntos de Dominio) for each operation from gamification system
+        # This will be used to determine the nivel (1-5) for exercise generation
+        from gamification_profile import obtener_perfil_completo
+        
+        perfil_completo = await obtener_perfil_completo(request.user_ref)
+        operaciones_gamif = {op['operacion']: op for op in perfil_completo['operaciones']}
+        
+        # Map operation names to symbols and get their PD
+        op_name_to_symbol_map = {
+            'suma': '+',
+            'resta': '-',
+            'mult': '*',
+            'div': '/'
+        }
+        
+        # Build PD map for problem generator (using PD as "difficulty")
+        # The gamification problem generator will convert PD to nivel (1-5)
+        pd_by_operator = {}
+        for op_name, op_symbol in op_name_to_symbol_map.items():
+            if op_name in operaciones_gamif:
+                pd_by_operator[op_symbol] = float(operaciones_gamif[op_name]['pd_operacion'])
+            else:
+                pd_by_operator[op_symbol] = 0.0  # Not unlocked yet
+        
+        print(f"[DEBUG] PD by operator: {pd_by_operator}")
+        
+        # For backward compatibility with old system, also keep difficulty profiles
+        # But prioritize PD values for gamification
         profiles = roble_client.read_table(
             "pine_user_difficulty_profile",
             {"user_ref": request.user_ref}
         )
-        print(f"[DEBUG] Found {len(profiles)} difficulty profiles")
+        print(f"[DEBUG] Found {len(profiles)} old difficulty profiles")
         
-        # Build difficulty map
+        # Build old difficulty map as fallback
         difficulty_by_operator = {}
         for profile in profiles:
             operator = profile.get('operator')
             diff = profile.get('current_difficulty', 1.0)
             difficulty_by_operator[operator] = float(diff)
         
-        # Initialize missing operators with default difficulty
+        # Initialize missing operators with default
         for op in ['+', '-', '*', '/']:
             if op not in difficulty_by_operator:
                 difficulty_by_operator[op] = 1.0
-                # Create initial profile
-                print(f"[DEBUG] Creating initial profile for operator: {op}")
+                # Create initial profile for tracking
+                print(f"[DEBUG] Creating initial difficulty profile for operator: {op}")
                 roble_client.insert_records("pine_user_difficulty_profile", [{
                     "user_ref": request.user_ref,
                     "operator": op,
@@ -259,28 +316,38 @@ async def start_session(request: StartSessionRequest):
                     "total_correct": 0
                 }])
         
-        print(f"[DEBUG] Difficulty map: {difficulty_by_operator}")
+        print(f"[DEBUG] Old difficulty map (fallback): {difficulty_by_operator}")
         
+        # ==================== GET PENDING ITEMS ====================
         # Get pending items for this user (items that need review)
+        # Only for UNLOCKED operations
         from gamification_batch import obtener_items_pendientes
-        # TODO: Determine operation from request or default to main operation
-        # For now, we'll mix all operations' pending items
+        
         all_pending_items = []
-        for op_symbol, op_name in [('+', 'suma'), ('-', 'resta'), ('*', 'mult'), ('/', 'div')]:
+        for op_name in unlocked_operations_names:
             pending = await obtener_items_pendientes(request.user_ref, op_name, limite=2)
             all_pending_items.extend(pending)
         
         print(f"[DEBUG] Found {len(all_pending_items)} pending items for review")
         
-        # Generate NEW exercises using injected batch generator
+        # ==================== GENERATE EXERCISES ====================
+        # Generate NEW exercises using gamification-aware batch generator
+        # Uses PD values to determine nivel (1-5) for each operation
+        # ONLY generates for unlocked operations
         container = get_container()
+        
         # Reduce the number of new exercises to make room for pending items
         num_new_exercises = max(1, request.num_exercises - len(all_pending_items))
         print(f"[DEBUG] Generating {num_new_exercises} new exercises + {len(all_pending_items)} pending items")
+        print(f"[DEBUG] Only using unlocked operations: {unlocked_operators}")
+        print(f"[DEBUG] Using PD values for nivel-based generation")
         
+        # Use PD values for gamification-aware generation
+        # The GamificationProblemGenerator will convert PD to nivel (1-5)
         exercises = container.batch_generator.generate_batch(
-            difficulty_by_operator,
-            num_new_exercises
+            pd_by_operator,  # ← Use PD instead of old difficulty!
+            num_new_exercises,
+            unlocked_operations=unlocked_operators
         )
         print(f"[DEBUG] Generated {len(exercises)} exercises")
         
