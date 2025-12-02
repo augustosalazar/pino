@@ -252,55 +252,59 @@ export default function GamificationProfileScreen() {
                     <View style={styles.unlocksSection}>
                         <Text style={styles.sectionTitle}>🔓 Progreso de Desbloqueos</Text>
 
-                        {Object.entries(profile.progreso_desbloqueos).map(
-                            ([operacion, progress]) => {
-                                if (progress.desbloqueada) return null;
+                        <View style={styles.unlocksGrid}>
+                            {Object.entries(profile.progreso_desbloqueos).map(
+                                ([operacion, progress]) => {
+                                    if (progress.desbloqueada) return null;
 
-                                return (
-                                    <View key={operacion} style={styles.unlockCard}>
-                                        <Text style={styles.unlockTitle}>
-                                            {operacion.toUpperCase()}
-                                        </Text>
+                                    return (
+                                        <View key={operacion} style={styles.unlockItem}>
+                                            <View style={styles.unlockCard}>
+                                                <Text style={styles.unlockTitle}>
+                                                    {operacion.toUpperCase()}
+                                                </Text>
 
-                                        {progress.requisitos && (
-                                            <View style={styles.requirementsList}>
-                                                {Object.entries(progress.requisitos).map(
-                                                    ([key, req]) => {
-                                                        if (typeof req === 'object' && 'cumplido' in req) {
-                                                            return (
-                                                                <View key={key} style={styles.requirement}>
-                                                                    <Text style={styles.requirementIcon}>
-                                                                        {req.cumplido ? '✅' : '❌'}
-                                                                    </Text>
-                                                                    <Text style={styles.requirementText}>
-                                                                        {key}: {req.actual} / {req.requerido}
-                                                                    </Text>
-                                                                </View>
-                                                            );
-                                                        } else if (
-                                                            typeof req === 'object' &&
-                                                            'completado' in req
-                                                        ) {
-                                                            return (
-                                                                <View key={key} style={styles.requirement}>
-                                                                    <Text style={styles.requirementIcon}>
-                                                                        {req.completado ? '✅' : '❌'}
-                                                                    </Text>
-                                                                    <Text style={styles.requirementText}>
-                                                                        {key.replace('minijefe_', 'Mini-jefe: ').toUpperCase()}
-                                                                    </Text>
-                                                                </View>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    }
+                                                {progress.requisitos && (
+                                                    <View style={styles.requirementsList}>
+                                                        {Object.entries(progress.requisitos).map(
+                                                            ([key, req]) => {
+                                                                if (typeof req === 'object' && 'cumplido' in req) {
+                                                                    return (
+                                                                        <View key={key} style={styles.requirement}>
+                                                                            <Text style={styles.requirementIcon}>
+                                                                                {req.cumplido ? '✅' : '❌'}
+                                                                            </Text>
+                                                                            <Text style={styles.requirementText}>
+                                                                                {key}: {req.actual} / {req.requerido}
+                                                                            </Text>
+                                                                        </View>
+                                                                    );
+                                                                } else if (
+                                                                    typeof req === 'object' &&
+                                                                    'completado' in req
+                                                                ) {
+                                                                    return (
+                                                                        <View key={key} style={styles.requirement}>
+                                                                            <Text style={styles.requirementIcon}>
+                                                                                {req.completado ? '✅' : '❌'}
+                                                                            </Text>
+                                                                            <Text style={styles.requirementText}>
+                                                                                {key.replace('minijefe_', 'Mini-jefe: ').toUpperCase()}
+                                                                            </Text>
+                                                                        </View>
+                                                                    );
+                                                                }
+                                                                return null;
+                                                            }
+                                                        )}
+                                                    </View>
                                                 )}
                                             </View>
-                                        )}
-                                    </View>
-                                );
-                            }
-                        )}
+                                        </View>
+                                    );
+                                }
+                            )}
+                        </View>
                     </View>
                 )}
 
@@ -487,6 +491,15 @@ const styles = StyleSheet.create({
     },
     unlocksSection: {
         marginBottom: 24,
+    },
+    unlocksGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginHorizontal: -6,
+    },
+    unlockItem: {
+        width: '50%',
+        padding: 6,
     },
     unlockCard: {
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
