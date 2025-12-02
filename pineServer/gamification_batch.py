@@ -6,11 +6,11 @@ incluyendo cálculos de recompensas, bonificaciones, y gestión de items pendien
 """
 
 from typing import Dict, List
-from datetime import datetime, date
 import gamification_core as gc
 import gamification_profile as gp
 import gamification_unlocks as gu
 from roble_client import roble_client
+from datetime_utils import now_colombia_iso
 
 
 # ======================================================================================
@@ -221,8 +221,8 @@ async def gestionar_items_pendientes(user_ref: str, items_fallados: List[Dict], 
             pending_item = existentes[0]
             updates = {
                 'intentos_fallidos': pending_item['intentos_fallidos'] + 1,
-                'fecha_ultimo_fallo': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
+                'fecha_ultimo_fallo': now_colombia_iso(),
+                'updated_at': now_colombia_iso()
             }
             roble_client.update_record('pine_pending_items', pending_item['_id'], updates)
         else:
@@ -233,12 +233,12 @@ async def gestionar_items_pendientes(user_ref: str, items_fallados: List[Dict], 
                 'operacion': item.get('operacion', operacion),
                 'dificultad': int(item.get('dificultad', 1)),
                 'intentos_fallidos': 1,
-                'fecha_primer_fallo': datetime.now().isoformat(),
-                'fecha_ultimo_fallo': datetime.now().isoformat(),
+                'fecha_primer_fallo': now_colombia_iso(),
+                'fecha_ultimo_fallo': now_colombia_iso(),
                 'mostrado_nuevamente': False,
                 'completado': False,
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
+                'created_at': now_colombia_iso(),
+                'updated_at': now_colombia_iso()
             }
             roble_client.insert_records('pine_pending_items', [nuevo_pending])
             items_agregados += 1
@@ -299,8 +299,8 @@ async def marcar_item_pendiente_completado(user_ref: str, exercise_ref: str) -> 
     pending_item = items[0]
     updates = {
         'completado': True,
-        'fecha_completado': datetime.now().isoformat(),
-        'updated_at': datetime.now().isoformat()
+        'fecha_completado': now_colombia_iso(),
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_pending_items', pending_item['_id'], updates)

@@ -5,10 +5,10 @@ Este módulo maneja la lógica de desbloqueos de operaciones y modos de juego.
 """
 
 from typing import Dict, List
-from datetime import datetime
 import gamification_core as gc
 import gamification_profile as gp
 from roble_client import roble_client
+from datetime_utils import now_colombia_iso
 
 
 # ======================================================================================
@@ -96,7 +96,7 @@ async def desbloquear_operacion(user_ref: str, operacion: str) -> Dict:
     updates = {
         'unlocked': True,
         'nivel_dominio': 1,  # Al desbloquear, empieza en nivel 1
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_operations', operacion_obj['_id'], updates)
@@ -122,7 +122,7 @@ async def marcar_minijefe_completado(user_ref: str, operacion: str) -> Dict:
     
     updates = {
         'miniboss_completed': True,
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_operations', operacion_obj['_id'], updates)
@@ -148,8 +148,8 @@ async def registrar_intento_minijefe(user_ref: str, operacion: str) -> Dict:
     
     updates = {
         'miniboss_attempts': operacion_obj['miniboss_attempts'] + 1,
-        'miniboss_last_attempt': datetime.now().isoformat(),
-        'updated_at': datetime.now().isoformat()
+        'miniboss_last_attempt': now_colombia_iso(),
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_operations', operacion_obj['_id'], updates)
@@ -194,7 +194,7 @@ async def verificar_y_actualizar_modos(user_ref: str) -> Dict[str, bool]:
         'unlocked_bosses': modos_desbloqueados['bosses'],
         'unlocked_elite': modos_desbloqueados['elite'],
         'unlocked_master': modos_desbloqueados['master'],
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_gamification', perfil['_id'], updates)

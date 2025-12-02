@@ -10,9 +10,9 @@ Estos scripts deben ejecutarse mediante cron jobs o tareas programadas.
 """
 
 from typing import List, Dict
-from datetime import datetime, timedelta
 from roble_client import roble_client
 import gamification_profile as gp
+from datetime_utils import now_colombia, now_colombia_iso
 
 
 # ======================================================================================
@@ -28,7 +28,7 @@ async def reset_pp_dia_todos_usuarios() -> Dict:
     Returns:
         Dict con estadísticas del reset
     """
-    print(f"[ADMIN] Starting daily PP reset at {datetime.now()}")
+    print(f"[ADMIN] Starting daily PP reset at {now_colombia()}")
     
     # Get all gamification profiles
     profiles = roble_client.read_table("pine_user_gamification", {})
@@ -51,7 +51,7 @@ async def reset_pp_dia_todos_usuarios() -> Dict:
     
     result = {
         'task': 'reset_pp_dia',
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': now_colombia_iso(),
         'total_users': total_users,
         'reset_count': reset_count,
         'errors_count': len(errors),
@@ -76,7 +76,7 @@ async def reset_semana_todos_usuarios() -> Dict:
     Returns:
         Dict con estadísticas del reset
     """
-    print(f"[ADMIN] Starting weekly reset at {datetime.now()}")
+    print(f"[ADMIN] Starting weekly reset at {now_colombia()}")
     
     # Get all gamification profiles
     profiles = roble_client.read_table("pine_user_gamification", {})
@@ -99,7 +99,7 @@ async def reset_semana_todos_usuarios() -> Dict:
     
     result = {
         'task': 'reset_semana',
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': now_colombia_iso(),
         'total_users': total_users,
         'reset_count': reset_count,
         'errors_count': len(errors),
@@ -129,7 +129,7 @@ async def verificar_rachas_rotas() -> Dict:
     Returns:
         Dict con estadísticas de rachas verificadas
     """
-    print(f"[ADMIN] Starting streak verification at {datetime.now()}")
+    print(f"[ADMIN] Starting streak verification at {now_colombia()}")
     
     # Get all gamification profiles with active streaks
     profiles = roble_client.read_table("pine_user_gamification", {})
@@ -168,7 +168,7 @@ async def verificar_rachas_rotas() -> Dict:
     
     result = {
         'task': 'verificar_rachas',
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': now_colombia_iso(),
         'total_users': total_users,
         'broken_streaks': broken_streaks,
         'active_streaks': active_streaks,
@@ -208,7 +208,7 @@ async def tarea_diaria_completa() -> Dict:
     
     result = {
         'task_type': 'daily_complete',
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': now_colombia_iso(),
         'reset_pp': reset_pp_result,
         'verify_streaks': rachas_result
     }

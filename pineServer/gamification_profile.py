@@ -6,9 +6,9 @@ el perfil de gamificación de los usuarios.
 """
 
 from typing import Dict, List, Optional
-from datetime import datetime
 from roble_client import roble_client
 import gamification_core as gc
+from datetime_utils import now_colombia_iso
 
 
 # ======================================================================================
@@ -42,9 +42,9 @@ async def crear_perfil_gamificacion(user_ref: str) -> Dict:
         'unlocked_bosses': False,
         'unlocked_elite': False,
         'unlocked_master': False,
-        'semana_inicio': datetime.now().isoformat(),
-        'created_at': datetime.now().isoformat(),
-        'updated_at': datetime.now().isoformat()
+        'semana_inicio': now_colombia_iso(),
+        'created_at': now_colombia_iso(),
+        'updated_at': now_colombia_iso()
     }
     
     result = roble_client.insert_records('pine_user_gamification', [perfil])
@@ -82,8 +82,8 @@ async def inicializar_operaciones(user_ref: str) -> List[Dict]:
             'miniboss_attempts': 0,
             'total_ejercicios': 0,
             'total_correctos': 0,
-            'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat()
+            'created_at': now_colombia_iso(),
+            'updated_at': now_colombia_iso()
         }
         operaciones.append(operacion)
     
@@ -227,7 +227,7 @@ async def actualizar_pp(user_ref: str, pp_delta: int, actualizar_dia: bool = Tru
     
     updates = {
         'pp_total': perfil['pp_total'] + pp_delta,
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     if actualizar_dia:
@@ -266,7 +266,7 @@ async def actualizar_pd(user_ref: str, pd_global_delta: int, pd_operacion_delta:
     perfil_updates = {
         'pd_global': perfil['pd_global'] + pd_global_delta,
         'pd_semana': perfil['pd_semana'] + pd_global_delta,
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_gamification', perfil['_id'], perfil_updates)
@@ -283,7 +283,7 @@ async def actualizar_pd(user_ref: str, pd_global_delta: int, pd_operacion_delta:
     operacion_updates = {
         'pd_operacion': nuevo_pd_operacion,
         'nivel_dominio': nuevo_nivel_dominio,
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_operations', operacion_obj['_id'], operacion_updates)
@@ -320,7 +320,7 @@ async def actualizar_xp(user_ref: str, xp_delta: int) -> tuple[Dict, bool, int]:
     updates = {
         'xp_total': xp_nueva,
         'nivel_jugador': nivel_nuevo,
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     # Si hubo level up, sumar PD de recompensa
@@ -354,12 +354,12 @@ async def actualizar_racha(user_ref: str, incrementar: bool = True) -> Dict:
     if incrementar:
         updates = {
             'racha_dias': perfil['racha_dias'] + 1,
-            'updated_at': datetime.now().isoformat()
+            'updated_at': now_colombia_iso()
         }
     else:
         updates = {
             'racha_dias': 0,
-            'updated_at': datetime.now().isoformat()
+            'updated_at': now_colombia_iso()
         }
     
     roble_client.update_record('pine_user_gamification', perfil['_id'], updates)
@@ -388,7 +388,7 @@ async def incrementar_estadisticas_operacion(user_ref: str, operacion: str, tota
     updates = {
         'total_ejercicios': operacion_obj['total_ejercicios'] + total_ejercicios,
         'total_correctos': operacion_obj['total_correctos'] + correctos,
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_operations', operacion_obj['_id'], updates)
@@ -417,7 +417,7 @@ async def resetear_pp_dia(user_ref: str) -> Dict:
     
     updates = {
         'pp_dia': 0,
-        'updated_at': datetime.now().isoformat()
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_gamification', perfil['_id'], updates)
@@ -443,8 +443,8 @@ async def resetear_semana(user_ref: str) -> Dict:
     updates = {
         'pp_semana': 0,
         'pd_semana': 0,
-        'semana_inicio': datetime.now().isoformat(),
-        'updated_at': datetime.now().isoformat()
+        'semana_inicio': now_colombia_iso(),
+        'updated_at': now_colombia_iso()
     }
     
     roble_client.update_record('pine_user_gamification', perfil['_id'], updates)
