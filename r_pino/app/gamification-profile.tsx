@@ -215,33 +215,36 @@ export default function GamificationProfileScreen() {
                 <View style={styles.operationsSection}>
                     <Text style={styles.sectionTitle}>🎯 Operaciones</Text>
 
-                    {operaciones
-                        .sort((a, b) => {
-                            // Sort: unlocked first, then by operation order
-                            const order = ['suma', 'resta', 'mult', 'div'];
-                            if (a.unlocked !== b.unlocked) {
-                                return a.unlocked ? -1 : 1;
-                            }
-                            return order.indexOf(a.operacion) - order.indexOf(b.operacion);
-                        })
-                        .map((operation) => (
-                            <OperationCard
-                                key={operation.operacion}
-                                operation={operation}
-                                onPress={
-                                    operation.unlocked
-                                        ? () => {
-                                            // TODO: Navigate to operation detail or practice
-                                            Alert.alert(
-                                                'Operación',
-                                                `Ver detalles de ${operation.operacion}`
-                                            );
-                                        }
-                                        : undefined
+                    <View style={styles.operationsGrid}>
+                        {operaciones
+                            .sort((a, b) => {
+                                // Sort: unlocked first, then by operation order
+                                const order = ['suma', 'resta', 'mult', 'div'];
+                                if (a.unlocked !== b.unlocked) {
+                                    return a.unlocked ? -1 : 1;
                                 }
-                                showProgress={true}
-                            />
-                        ))}
+                                return order.indexOf(a.operacion) - order.indexOf(b.operacion);
+                            })
+                            .map((operation) => (
+                                <View key={operation.operacion} style={styles.operationItem}>
+                                    <OperationCard
+                                        operation={operation}
+                                        onPress={
+                                            operation.unlocked
+                                                ? () => {
+                                                    // TODO: Navigate to operation detail or practice
+                                                    Alert.alert(
+                                                        'Operación',
+                                                        `Ver detalles de ${operation.operacion}`
+                                                    );
+                                                }
+                                                : undefined
+                                        }
+                                        showProgress={true}
+                                    />
+                                </View>
+                            ))}
+                    </View>
                 </View>
 
                 {/* Unlock Progress Section */}
@@ -471,10 +474,19 @@ const styles = StyleSheet.create({
         color: 'rgba(255, 255, 255, 0.9)',
     },
     operationsSection: {
-        marginBottom: 16,
+        marginBottom: 24,
+    },
+    operationsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginHorizontal: -6,
+    },
+    operationItem: {
+        width: '50%',
+        padding: 6,
     },
     unlocksSection: {
-        marginBottom: 16,
+        marginBottom: 24,
     },
     unlockCard: {
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
