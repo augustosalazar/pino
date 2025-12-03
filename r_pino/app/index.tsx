@@ -286,6 +286,16 @@ export default function HomeScreen() {
                                                             </Text>
                                                         </View>
                                                     )}
+
+                                                    {op.operacion === 'suma' && (
+                                                        <View style={[styles.unlockProgressContainer, { opacity: 0 }]}>
+                                                            <View style={styles.progressBarBackground}>
+                                                                <View style={[styles.progressBarFill, { width: `0%` }]} />
+                                                            </View>
+                                                            <Text style={styles.progressPercentage}>0% desbloqueado</Text>
+                                                        </View>
+                                                    )}
+
                                                 </LinearGradient>
                                             </View>
                                         </View>
