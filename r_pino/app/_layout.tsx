@@ -23,6 +23,8 @@ export default function RootLayout() {
                     <Stack.Screen name="gamification-profile" options={{ headerShown: false }} />
                     <Stack.Screen name="settings" options={{ headerShown: false }} />
                     <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+                    <Stack.Screen name="miniboss" options={{ headerShown: false }} />
+                    <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
                 </Stack>
             </AuthProvider>
         </ThemeProvider>
