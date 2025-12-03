@@ -86,15 +86,15 @@ export default function HomeScreen() {
 
     const getOperationGradient = (operacion: string): [string, string] => {
         switch (operacion) {
-            case 'suma': return ['rgba(67, 233, 123, 0.3)', 'rgba(56, 249, 215, 0.3)'];
-            case 'resta': return ['rgba(250, 112, 154, 0.3)', 'rgba(254, 225, 64, 0.3)'];
-            case 'mult': return ['rgba(79, 172, 254, 0.3)', 'rgba(0, 242, 254, 0.3)'];
-            case 'div': return ['rgba(245, 93, 251, 0.3)', 'rgba(245, 87, 108, 0.3)'];
-            default: return ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)'];
+            case 'suma': return ['rgba(67,233,123,0.3)', 'rgba(56,249,215,0.3)'];
+            case 'resta': return ['rgba(250,112,154,0.3)', 'rgba(254,225,64,0.3)'];
+            case 'mult': return ['rgba(79,172,254,0.3)', 'rgba(0,242,254,0.3)'];
+            case 'div': return ['rgba(245,93,251,0.3)', 'rgba(245,87,108,0.3)'];
+            default: return ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.1)'];
         }
     };
 
-    // Redirect admin users
+    // redirect admin users
     if (!loading && user?.user_type === 2) {
         return <Redirect href="/(admin)/stats" />;
     }
@@ -144,6 +144,7 @@ export default function HomeScreen() {
                             <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/settings')}>
                                 <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
                             </TouchableOpacity>
+
                             <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
                                 <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
                             </TouchableOpacity>
@@ -153,8 +154,10 @@ export default function HomeScreen() {
                     {profile && (
                         <View style={styles.headerStats}>
                             <LevelBadge level={profile.perfil.nivel_jugador} size="large" showName={false} />
+
                             <View style={styles.levelInfo}>
                                 <Text style={styles.levelText}>Nivel {profile.perfil.nivel_jugador}</Text>
+
                                 <View style={styles.xpBar}>
                                     <View
                                         style={[
@@ -168,6 +171,7 @@ export default function HomeScreen() {
                                         ]}
                                     />
                                 </View>
+
                                 <Text style={styles.xpText}>{profile.perfil.xp_total} XP</Text>
                             </View>
                         </View>
@@ -201,7 +205,7 @@ export default function HomeScreen() {
                     </View>
                 )}
 
-                {/* Main Action Button */}
+                {/* Main Action */}
                 <TouchableOpacity style={styles.playButton} onPress={handleStartPractice} activeOpacity={0.8}>
                     <LinearGradient colors={['#4facfe', '#00f2fe']} style={styles.playGradient}>
                         <Ionicons name="play-circle" size={32} color="#FFFFFF" />
@@ -209,7 +213,7 @@ export default function HomeScreen() {
                     </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Operations Section */}
+                {/* Operations */}
                 {profile && (
                     <View style={styles.operationsSection}>
                         <Text style={styles.sectionTitle}>Tus Operaciones</Text>
@@ -221,10 +225,21 @@ export default function HomeScreen() {
                                     return order.indexOf(a.operacion) - order.indexOf(b.operacion);
                                 })
                                 .map((op) => {
-                                    const unlockProgress = op.operacion !== 'suma'
-                                        ? profile.progreso_desbloqueos?.[op.operacion as 'resta' | 'mult' | 'div']
-                                        : undefined;
-                                    const isLocked = !op.unlocked;
+                                    const unlocked = op.unlocked;
+                                    const unlockProgress =
+                                        op.operacion !== 'suma'
+                                            ? profile.progreso_desbloqueos?.[op.operacion as 'resta' | 'mult' | 'div']
+                                            : undefined;
+
+                                    // progress bar %
+                                    let unlockPercentage = 100;
+                                    if (!unlocked && unlockProgress?.requisitos) {
+                                        const reqs = Object.values(unlockProgress.requisitos);
+                                        const completed = reqs.filter((r) =>
+                                            r && ('cumplido' in r ? r.cumplido : r.completado)
+                                        ).length;
+                                        unlockPercentage = reqs.length ? Math.round((completed / reqs.length) * 100) : 0;
+                                    }
 
                                     return (
                                         <View key={op.operacion} style={styles.operationCardContainer}>
@@ -233,59 +248,46 @@ export default function HomeScreen() {
                                                     colors={getOperationGradient(op.operacion)}
                                                     style={styles.operationGradient}
                                                 >
-                                                    {isLocked && (
+                                                    {!unlocked && (
                                                         <View style={styles.lockedOverlay}>
-                                                            <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.8)" />
+                                                            <Ionicons
+                                                                name="lock-closed"
+                                                                size={20}
+                                                                color="rgba(255,255,255,0.8)"
+                                                            />
                                                         </View>
                                                     )}
-                                                    <Text style={styles.operationIcon}>{getOperationIcon(op.operacion)}</Text>
-                                                    <Text style={styles.operationName}>{getOperationName(op.operacion)}</Text>
+
+                                                    <Text style={styles.operationIcon}>
+                                                        {getOperationIcon(op.operacion)}
+                                                    </Text>
+
+                                                    <Text style={styles.operationName}>
+                                                        {getOperationName(op.operacion)}
+                                                    </Text>
+
                                                     <View style={styles.operationStats}>
                                                         <Text style={styles.operationLevel}>Nv. {op.nivel_dominio}</Text>
                                                         <Text style={styles.operationPD}>{op.pd_operacion} PD</Text>
                                                     </View>
+
+                                                    {!unlocked && unlockProgress && (
+                                                        <View style={styles.unlockProgressContainer}>
+                                                            <View style={styles.progressBarBackground}>
+                                                                <View
+                                                                    style={[
+                                                                        styles.progressBarFill,
+                                                                        { width: `${unlockPercentage}%` },
+                                                                    ]}
+                                                                />
+                                                            </View>
+                                                            <Text style={styles.progressPercentage}>
+                                                                {unlockPercentage}% desbloqueado
+                                                            </Text>
+                                                        </View>
+                                                    )}
                                                 </LinearGradient>
                                             </View>
-
-                                            {/* Unlock Progress */}
-                                            {isLocked && unlockProgress && unlockProgress.requisitos && (
-                                                <View style={styles.unlockProgress}>
-                                                    <Text style={styles.unlockTitle}>🔓 Requisitos:</Text>
-                                                    <View style={styles.requirementsList}>
-                                                        {Object.entries(unlockProgress.requisitos).map(([key, req]) => {
-                                                            if (!req) return null;
-
-                                                            // Type guard for Requirement type
-                                                            if ('cumplido' in req && 'actual' in req && 'requerido' in req) {
-                                                                return (
-                                                                    <View key={key} style={styles.requirement}>
-                                                                        <Text style={styles.requirementIcon}>
-                                                                            {req.cumplido ? '✅' : '⏳'}
-                                                                        </Text>
-                                                                        <Text style={styles.requirementText}>
-                                                                            {key}: {req.actual}/{req.requerido}
-                                                                        </Text>
-                                                                    </View>
-                                                                );
-                                                            }
-                                                            // Type guard for miniboss requirement
-                                                            else if ('completado' in req) {
-                                                                return (
-                                                                    <View key={key} style={styles.requirement}>
-                                                                        <Text style={styles.requirementIcon}>
-                                                                            {req.completado ? '✅' : '⏳'}
-                                                                        </Text>
-                                                                        <Text style={styles.requirementText}>
-                                                                            {key.replace('minijefe_', 'Mini-jefe: ')}
-                                                                        </Text>
-                                                                    </View>
-                                                                );
-                                                            }
-                                                            return null;
-                                                        })}
-                                                    </View>
-                                                </View>
-                                            )}
                                         </View>
                                     );
                                 })}
@@ -303,7 +305,10 @@ export default function HomeScreen() {
                             onPress={() => router.push('/gamification-profile')}
                             activeOpacity={0.7}
                         >
-                            <LinearGradient colors={['rgba(79, 172, 254, 0.3)', 'rgba(0, 242, 254, 0.3)']} style={styles.accessGradient}>
+                            <LinearGradient
+                                colors={['rgba(79,172,254,0.3)', 'rgba(0,242,254,0.3)']}
+                                style={styles.accessGradient}
+                            >
                                 <Text style={styles.accessIcon}>📊</Text>
                                 <Text style={styles.accessText}>Perfil</Text>
                             </LinearGradient>
@@ -314,7 +319,10 @@ export default function HomeScreen() {
                             onPress={() => router.push('/miniboss')}
                             activeOpacity={0.7}
                         >
-                            <LinearGradient colors={['rgba(245, 93, 251, 0.3)', 'rgba(245, 87, 108, 0.3)']} style={styles.accessGradient}>
+                            <LinearGradient
+                                colors={['rgba(245,93,251,0.3)', 'rgba(245,87,108,0.3)']}
+                                style={styles.accessGradient}
+                            >
                                 <Text style={styles.accessIcon}>🐉</Text>
                                 <Text style={styles.accessText}>Mini-jefes</Text>
                             </LinearGradient>
@@ -325,16 +333,18 @@ export default function HomeScreen() {
                             onPress={() => router.push('/leaderboard')}
                             activeOpacity={0.7}
                         >
-                            <LinearGradient colors={['rgba(255, 215, 0, 0.3)', 'rgba(255, 165, 0, 0.3)']} style={styles.accessGradient}>
+                            <LinearGradient
+                                colors={['rgba(255,215,0,0.3)', 'rgba(255,165,0,0.3)']}
+                                style={styles.accessGradient}
+                            >
                                 <Text style={styles.accessIcon}>🏆</Text>
                                 <Text style={styles.accessText}>Ranking</Text>
                             </LinearGradient>
                         </TouchableOpacity>
-
                     </View>
                 </View>
 
-                {/* Institution Info */}
+                {/* Institution */}
                 {user?.institution_name && (
                     <View style={styles.institutionInfo}>
                         <Text style={styles.institutionText}>{user.institution_name}</Text>
@@ -357,23 +367,45 @@ const styles = StyleSheet.create({
     headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     userInfo: { flexDirection: 'row', alignItems: 'center' },
     userText: { marginLeft: 12 },
-    greeting: { fontSize: 14, color: 'rgba(255, 255, 255, 0.7)' },
+    greeting: { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
     username: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' },
     headerActions: { flexDirection: 'row', gap: 12 },
-    iconButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.1)', justifyContent: 'center', alignItems: 'center' },
-    headerStats: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 16, padding: 16 },
+    iconButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerStats: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 16,
+        padding: 16,
+    },
     levelInfo: { flex: 1, marginLeft: 16 },
     levelText: { fontSize: 16, fontWeight: 'bold', color: '#FFD700', marginBottom: 8 },
-    xpBar: { height: 8, backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
+    xpBar: { height: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
     xpFill: { height: '100%', backgroundColor: '#4facfe', borderRadius: 4 },
-    xpText: { fontSize: 12, color: 'rgba(255, 255, 255, 0.7)' },
+    xpText: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
     quickStats: { flexDirection: 'row', gap: 12, marginBottom: 24 },
     statBox: { flex: 1, borderRadius: 12, overflow: 'hidden' },
     statGradient: { padding: 16, alignItems: 'center' },
     statEmoji: { fontSize: 24, marginBottom: 4 },
     statValue: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 2 },
-    statLabel: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)' },
-    playButton: { borderRadius: 16, overflow: 'hidden', marginBottom: 24, shadowColor: '#4facfe', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 8 },
+    statLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
+    playButton: {
+        borderRadius: 16,
+        overflow: 'hidden',
+        marginBottom: 24,
+        shadowColor: '#4facfe',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 8,
+        elevation: 8,
+    },
     playGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 12 },
     playText: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' },
     operationsSection: { marginBottom: 24 },
@@ -381,25 +413,45 @@ const styles = StyleSheet.create({
     operationsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     operationCardContainer: { width: '48%' },
     operationCard: { borderRadius: 12, overflow: 'hidden', marginBottom: 8 },
-    operationGradient: { padding: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)', position: 'relative' },
+    operationGradient: {
+        padding: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+        position: 'relative',
+    },
     lockedOverlay: { position: 'absolute', top: 8, right: 8, zIndex: 1 },
     operationIcon: { fontSize: 32, marginBottom: 8 },
     operationName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF', marginBottom: 8 },
     operationStats: { flexDirection: 'row', gap: 8 },
-    operationLevel: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)' },
+    operationLevel: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
     operationPD: { fontSize: 12, color: '#FFD700', fontWeight: '600' },
-    unlockProgress: { backgroundColor: 'rgba(255, 149, 0, 0.15)', borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 149, 0, 0.3)' },
-    unlockTitle: { fontSize: 11, fontWeight: '700', color: '#FFA500', marginBottom: 8 },
-    requirementsList: { gap: 6 },
-    requirement: { flexDirection: 'row', alignItems: 'center' },
-    requirementIcon: { fontSize: 12, marginRight: 6 },
-    requirementText: { fontSize: 10, color: 'rgba(255, 255, 255, 0.85)', flex: 1 },
+    unlockProgressContainer: { marginTop: 12, width: '100%' },
+    progressBarBackground: {
+        height: 6,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 3,
+        overflow: 'hidden',
+        marginBottom: 6,
+    },
+    progressBarFill: { height: '100%', backgroundColor: '#4CAF50', borderRadius: 3 },
+    progressPercentage: { fontSize: 10, color: 'rgba(255,255,255,0.9)', textAlign: 'center', fontWeight: '600' },
     quickAccess: { marginBottom: 24 },
     accessGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     accessCard: { width: '48%', borderRadius: 12, overflow: 'hidden' },
-    accessGradient: { padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)' },
+    accessGradient: {
+        padding: 20,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+    },
     accessIcon: { fontSize: 32, marginBottom: 8 },
     accessText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-    institutionInfo: { alignItems: 'center', paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)' },
-    institutionText: { fontSize: 13, color: 'rgba(255, 255, 255, 0.5)' },
+    institutionInfo: {
+        alignItems: 'center',
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.1)',
+    },
+    institutionText: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
 });
