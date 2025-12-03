@@ -135,7 +135,7 @@ export default function HomeScreen() {
                         <View style={styles.userInfo}>
                             <Ionicons name="person-circle" size={40} color="#FFD700" />
                             <View style={styles.userText}>
-                                <Text style={styles.greeting}>¡Hola!</Text>
+                                <Text style={styles.greeting}>Bienvenido a Pino </Text>
                                 <Text style={styles.username}>{user?.name?.split(' ')[0] || 'Usuario'}</Text>
                             </View>
                         </View>
@@ -367,7 +367,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    scrollContent: { padding: 20, paddingTop: 60, paddingBottom: 40 },
+    scrollContent: { padding: 20, paddingTop: 20, paddingBottom: 40 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' },
     loadingText: { marginTop: 12, fontSize: 16, color: '#FFFFFF' },
     errorText: { fontSize: 16, color: '#FF3B30', marginBottom: 20, textAlign: 'center' },
