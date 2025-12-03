@@ -282,16 +282,6 @@ export default function HomeScreen() {
                             </LinearGradient>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={styles.accessCard}
-                            onPress={() => router.push('/stats')}
-                            activeOpacity={0.7}
-                        >
-                            <LinearGradient colors={['rgba(102, 126, 234, 0.3)', 'rgba(118, 75, 162, 0.3)']} style={styles.accessGradient}>
-                                <Text style={styles.accessIcon}>📈</Text>
-                                <Text style={styles.accessText}>Estadísticas</Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
                     </View>
                 </View>
 
