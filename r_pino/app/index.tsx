@@ -220,26 +220,75 @@ export default function HomeScreen() {
                                     const order = ['suma', 'resta', 'mult', 'div'];
                                     return order.indexOf(a.operacion) - order.indexOf(b.operacion);
                                 })
-                                .map((op) => (
-                                    <View key={op.operacion} style={styles.operationCard}>
-                                        <LinearGradient
-                                            colors={getOperationGradient(op.operacion)}
-                                            style={styles.operationGradient}
-                                        >
-                                            {!op.unlocked && (
-                                                <View style={styles.lockedOverlay}>
-                                                    <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.8)" />
+                                .map((op) => {
+                                    const unlockProgress = op.operacion !== 'suma'
+                                        ? profile.progreso_desbloqueos?.[op.operacion as 'resta' | 'mult' | 'div']
+                                        : undefined;
+                                    const isLocked = !op.unlocked;
+
+                                    return (
+                                        <View key={op.operacion} style={styles.operationCardContainer}>
+                                            <View style={styles.operationCard}>
+                                                <LinearGradient
+                                                    colors={getOperationGradient(op.operacion)}
+                                                    style={styles.operationGradient}
+                                                >
+                                                    {isLocked && (
+                                                        <View style={styles.lockedOverlay}>
+                                                            <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.8)" />
+                                                        </View>
+                                                    )}
+                                                    <Text style={styles.operationIcon}>{getOperationIcon(op.operacion)}</Text>
+                                                    <Text style={styles.operationName}>{getOperationName(op.operacion)}</Text>
+                                                    <View style={styles.operationStats}>
+                                                        <Text style={styles.operationLevel}>Nv. {op.nivel_dominio}</Text>
+                                                        <Text style={styles.operationPD}>{op.pd_operacion} PD</Text>
+                                                    </View>
+                                                </LinearGradient>
+                                            </View>
+
+                                            {/* Unlock Progress */}
+                                            {isLocked && unlockProgress && unlockProgress.requisitos && (
+                                                <View style={styles.unlockProgress}>
+                                                    <Text style={styles.unlockTitle}>🔓 Requisitos:</Text>
+                                                    <View style={styles.requirementsList}>
+                                                        {Object.entries(unlockProgress.requisitos).map(([key, req]) => {
+                                                            if (!req) return null;
+
+                                                            // Type guard for Requirement type
+                                                            if ('cumplido' in req && 'actual' in req && 'requerido' in req) {
+                                                                return (
+                                                                    <View key={key} style={styles.requirement}>
+                                                                        <Text style={styles.requirementIcon}>
+                                                                            {req.cumplido ? '✅' : '⏳'}
+                                                                        </Text>
+                                                                        <Text style={styles.requirementText}>
+                                                                            {key}: {req.actual}/{req.requerido}
+                                                                        </Text>
+                                                                    </View>
+                                                                );
+                                                            }
+                                                            // Type guard for miniboss requirement
+                                                            else if ('completado' in req) {
+                                                                return (
+                                                                    <View key={key} style={styles.requirement}>
+                                                                        <Text style={styles.requirementIcon}>
+                                                                            {req.completado ? '✅' : '⏳'}
+                                                                        </Text>
+                                                                        <Text style={styles.requirementText}>
+                                                                            {key.replace('minijefe_', 'Mini-jefe: ')}
+                                                                        </Text>
+                                                                    </View>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })}
+                                                    </View>
                                                 </View>
                                             )}
-                                            <Text style={styles.operationIcon}>{getOperationIcon(op.operacion)}</Text>
-                                            <Text style={styles.operationName}>{getOperationName(op.operacion)}</Text>
-                                            <View style={styles.operationStats}>
-                                                <Text style={styles.operationLevel}>Nv. {op.nivel_dominio}</Text>
-                                                <Text style={styles.operationPD}>{op.pd_operacion} PD</Text>
-                                            </View>
-                                        </LinearGradient>
-                                    </View>
-                                ))}
+                                        </View>
+                                    );
+                                })}
                         </View>
                     </View>
                 )}
@@ -330,7 +379,8 @@ const styles = StyleSheet.create({
     operationsSection: { marginBottom: 24 },
     sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 16 },
     operationsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    operationCard: { width: '48%', borderRadius: 12, overflow: 'hidden' },
+    operationCardContainer: { width: '48%' },
+    operationCard: { borderRadius: 12, overflow: 'hidden', marginBottom: 8 },
     operationGradient: { padding: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)', position: 'relative' },
     lockedOverlay: { position: 'absolute', top: 8, right: 8, zIndex: 1 },
     operationIcon: { fontSize: 32, marginBottom: 8 },
@@ -338,6 +388,12 @@ const styles = StyleSheet.create({
     operationStats: { flexDirection: 'row', gap: 8 },
     operationLevel: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)' },
     operationPD: { fontSize: 12, color: '#FFD700', fontWeight: '600' },
+    unlockProgress: { backgroundColor: 'rgba(255, 149, 0, 0.15)', borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 149, 0, 0.3)' },
+    unlockTitle: { fontSize: 11, fontWeight: '700', color: '#FFA500', marginBottom: 8 },
+    requirementsList: { gap: 6 },
+    requirement: { flexDirection: 'row', alignItems: 'center' },
+    requirementIcon: { fontSize: 12, marginRight: 6 },
+    requirementText: { fontSize: 10, color: 'rgba(255, 255, 255, 0.85)', flex: 1 },
     quickAccess: { marginBottom: 24 },
     accessGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     accessCard: { width: '48%', borderRadius: 12, overflow: 'hidden' },
