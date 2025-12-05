@@ -21,6 +21,11 @@ from models import (
 from roble_client import roble_client
 from container import get_container
 
+# Import test endpoints for V2
+from gamification_v2_test_endpoints import router as v2_test_router
+# Import V2 initialization module
+from gamification_v2_init import initialize_v2_data
+
 app = FastAPI(
     title="PineServer API",
     description="Math exercise generation and adaptive difficulty management",
@@ -35,6 +40,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register V2 test endpoints
+app.include_router(v2_test_router)
+
+
+# Startup event: Initialize V2 data if not present
+@app.on_event("startup")
+async def startup_event():
+    """
+    Initialize V2 configuration data on server startup
+    """
+    initialize_v2_data()
+
 
 
 def determine_model_for_user(user_ref: str) -> str:

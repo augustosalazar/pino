@@ -1,6 +1,7 @@
 """
 Gamification-aware problem generator
-Generates math problems aligned with the 5-level mastery system
+Generates math problems aligned with the
+
 
 Nivel de Dominio (Mastery Level) per operation:
 - Nivel 1 (0-19 PD): Básico
