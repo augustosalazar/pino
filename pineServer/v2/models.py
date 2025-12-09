@@ -100,6 +100,7 @@ class ExerciseResult:
     es_correcto: bool
     tiempo_segundos: float
     fue_retry: bool = False
+    legacy_ref: Optional[str] = None  # ID del ejercicio en tabla pine_exercises
     
     def to_dict(self) -> dict:
         """Convierte a diccionario para JSON/JSONB"""

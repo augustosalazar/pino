@@ -286,8 +286,16 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
                 }
                 exercise_records_legacy.append(rec)
             
-            roble_client.insert_records("pine_exercises", exercise_records_legacy)
+            res_legacy = roble_client.insert_records("pine_exercises", exercise_records_legacy)
             print(f"[DEBUG V2] Legacy exercises saved: {len(exercise_records_legacy)}")
+            
+            # Vincular IDs generados con los resultados V2 para usarlos en pending_items
+            if res_legacy and "inserted" in res_legacy:
+                inserted_ids = [doc["_id"] for doc in res_legacy["inserted"]]
+                for i, ex_res in enumerate(v2_results):
+                    if i < len(inserted_ids):
+                        ex_res.legacy_ref = inserted_ids[i]
+                        
         except Exception as e:
             print(f"[V2 WARN] Failed to save legacy exercises (non-critical): {e}")
             

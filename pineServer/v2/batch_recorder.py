@@ -50,6 +50,9 @@ class BatchRecorder:
             # 4. Registrar intento de miniboss si aplica
             if result.batch_type == BatchType.MINIBOSS:
                 self._log_miniboss_attempt(result)
+            
+            # 5. Guardar items fallidos para repaso
+            self._save_pending_items(result)
                 
             return True
             
@@ -259,6 +262,41 @@ class BatchRecorder:
             "created_at": datetime.utcnow().isoformat()
         }
         roble_client.insert_records("pine_mini_jefes_intentos", [record])
+
+    def _save_pending_items(self, result: BatchResult):
+        """Identifica errores y los guarda en pine_pending_items usando el esquema existente"""
+        # Solo consideramos ejercicios fallidos que tienen referencia legacy
+        failed_exercises = [
+            ex for ex in result.ejercicios 
+            if not ex.es_correcto and ex.legacy_ref
+        ]
+        
+        if not failed_exercises:
+            return
+            
+        pending_records = []
+        timestamp = datetime.utcnow().isoformat()
+        
+        for fail in failed_exercises:
+            record = {
+                "user_ref": result.user_ref,
+                "exercise_ref": fail.legacy_ref,
+                "operacion": fail.exercise.operacion,
+                "dificultad": fail.exercise.dificultad,
+                "intentos_fallidos": 1,
+                "fecha_primer_fallo": timestamp,
+                "fecha_ultimo_fallo": timestamp,
+                "mostrado_nuevamente": False,
+                "completado": False
+            }
+            pending_records.append(record)
+            
+        if pending_records:
+            try:
+                roble_client.insert_records("pine_pending_items", pending_records)
+                print(f"[BatchRecorder] Saved {len(pending_records)} pending items")
+            except Exception as e:
+                print(f"[BatchRecorder] Failed to save pending items: {e}")
 
 # Singleton
 _batch_recorder_instance = None
