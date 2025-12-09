@@ -39,6 +39,65 @@ _V2_SESSION_METADATA_CACHE = {}
 
 # === START SESSION HANDLER ===
 
+def _get_pending_exercises(user_ref: str, operacion: str, limit: int = 2) -> List[V2Exercise]:
+    """Recupera ejercicios fallidos previamente para repaso"""
+    try:
+        # 1. Buscar pendientes no completados
+        pending = roble_client.read_table("pine_pending_items", {
+            "user_ref": user_ref,
+            "operacion": operacion,
+            "completado": False
+        })
+        
+        if not pending: return []
+        
+        # Filtrar los que ya se mostraron recientemente?
+        # Por ahora tomamos los más antiguos (FIFO) para asegurar que se repasen
+        pending.sort(key=lambda x: x.get('created_at', ''))
+        selection = pending[:limit]
+        
+        exercises = []
+        for p in selection:
+            ref = p.get("exercise_ref")
+            if not ref: continue
+            
+            # Buscar detalle en pine_exercises
+            ex_data_list = roble_client.read_table("pine_exercises", {"_id": ref})
+            if ex_data_list:
+                ex_rec = ex_data_list[0]
+                
+                # Mapear tipo respuesta legacy (int) a V2 (str)
+                t_resp = TipoRespuesta.MULTIPLE_CHOICE if ex_rec.get("exercise_type") == 1 else TipoRespuesta.ABIERTA
+                
+                # Parsear opciones
+                opciones = None
+                if ex_rec.get("options"):
+                    if isinstance(ex_rec["options"], str):
+                        try:
+                            opciones = json.loads(ex_rec["options"])
+                        except: pass
+                    elif isinstance(ex_rec["options"], list):
+                        opciones = ex_rec["options"]
+                
+                ex_obj = V2Exercise(
+                    operand_1=ex_rec["operand_1"],
+                    operand_2=ex_rec["operand_2"],
+                    operacion=operacion, # Asumimos misma op
+                    respuesta_correcta=float(ex_rec["correct_answer"]),
+                    dificultad=float(ex_rec["difficulty_level"]),
+                    tipo_respuesta=t_resp,
+                    opciones=opciones,
+                    pending_ref=p.get("_id") # ID del registro pendiente para marcar completado
+                )
+                exercises.append(ex_obj)
+                
+        print(f"[V2] Retrieved {len(exercises)} pending exercises for review")
+        return exercises
+        
+    except Exception as e:
+        print(f"[V2 WARN] Error fetching pending exercises: {e}")
+        return []
+
 async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionResponse:
     """Maneja el inicio de sesión usando lógica V2"""
     try:
@@ -95,14 +154,28 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
             batch_type = BatchType.MINIBOSS
             print(f"[V2] MINIBOSS TRIGGERED for {operacion}")
         
+        # Recuperar ejercicios pendientes para batches regulares
+        forced_exercises = []
+        if batch_type == BatchType.REGULAR:
+            forced_exercises = _get_pending_exercises(user_ref, operacion)
+
         # 4. Generar ejercicios
         batch_gen = get_batch_generator()
         v2_exercises = batch_gen.generate_batch(
             user_ref=user_ref,
             operacion=operacion,
             nivel_invisible=selected_op_state.nivel_invisible,
-            batch_type=batch_type
+            batch_type=batch_type,
+            forced_exercises=forced_exercises
         )
+        
+        print("\n" + "="*50)
+        print(f"BATCH GENERATED | Type: {batch_type} | Op: {operacion} | Level: {selected_op_state.nivel_invisible:.2f}")
+        print("-"*50)
+        for i, ex in enumerate(v2_exercises):
+            status = " [REVIEW]" if ex.pending_ref else " [NEW]   "
+            print(f"{i+1:02d}. {status} {ex.operand_1} {ex.operacion} {ex.operand_2} = {ex.respuesta_correcta} (Diff: {ex.dificultad:.2f})")
+        print("="*50 + "\n")
         
         legacy_exercises: List[Exercise] = []
         
@@ -157,7 +230,8 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
             "operacion": operacion,
             "nivel_central": int(selected_op_state.nivel_invisible),
             "nivel_invisible": selected_op_state.nivel_invisible,
-            "is_miniboss": is_boss
+            "is_miniboss": is_boss,
+            "exercises": v2_exercises # Guardamos objetos completos para recuperar pending_ref
         }
         print(f"[DEBUG V2] Metadata cached for session {session_id}")
         
@@ -222,8 +296,9 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
         # 2. Convertir resultados legacy a V2 ExerciseResult
         v2_results: List[ExerciseResult] = []
         op_map_rev = {'+': 'suma', '-': 'resta', '*': 'mult', '/': 'div'}
+        original_exercises = v2_meta.get("exercises", [])
         
-        for ex in request.exercises:
+        for i, ex in enumerate(request.exercises):
             # Reconstruir objeto Exercise
             op_v2 = op_map_rev.get(ex.operator.value, 'suma')
             
@@ -237,6 +312,10 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
                 opciones=ex.options
             )
             
+            # Recuperar pending_ref del original cacheado
+            if i < len(original_exercises):
+                exercise_obj.pending_ref = original_exercises[i].pending_ref
+            
             v2_res = ExerciseResult(
                 exercise=exercise_obj,
                 respuesta_usuario=ex.user_answer if ex.user_answer is not None else 0,
@@ -244,6 +323,16 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
                 tiempo_segundos=ex.time_taken_ms / 1000.0
             )
             v2_results.append(v2_res)
+            
+            # Si era un pendiente y se resolvió bien, marcar completado
+            if v2_res.es_correcto and exercise_obj.pending_ref:
+                try:
+                    roble_client.update_record("pine_pending_items", exercise_obj.pending_ref, {
+                        "completado": True
+                    })
+                    print(f"[V2] Pending item {exercise_obj.pending_ref} marked completed")
+                except Exception as e:
+                    print(f"[V2 WARN] Failed marking pending completed: {e}")
             
         # 3. Evaluar y Calcular
         # Performance
@@ -350,6 +439,21 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
             },
             "level_up": miniboss_aprobado is True
         }
+        
+        print("\n" + "="*50)
+        print("BATCH RESULTS RECEIVED")
+        print(f"Meta: {batch_type_str} | Op: {operacion_str} | Before: {nivel_invisible_antes:.2f} -> After: {nivel_invisible_nuevo:.2f}")
+        print("-"*50)
+        for i, res in enumerate(v2_results):
+            mark = "✓" if res.es_correcto else "✗"
+            status = " [CLEARED]" if res.es_correcto and res.exercise.pending_ref else ""
+            print(f"{i+1:02d}. {mark} {res.exercise.operand_1} {res.exercise.operacion} {res.exercise.operand_2} | User: {res.respuesta_usuario} | Time: {res.tiempo_segundos:.1f}s | Diff: {res.exercise.dificultad:.2f}{status}")
+        
+        print("-"*50)
+        print(f"SUMMARY: Score: {score_earned} | XP: {batch_result.xp_ganada} | PP: {batch_result.pp_ganados}")
+        if miniboss_aprobado is not None:
+            print(f"MINIBOSS: {'PASSED' if miniboss_aprobado else 'FAILED'}")
+        print("="*50 + "\n")
         
         return CompleteSessionResponse(
             session_id=session_id,

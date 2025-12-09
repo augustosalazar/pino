@@ -30,7 +30,8 @@ class BatchGenerator:
                       user_ref: str, 
                       operacion: str, 
                       nivel_invisible: float,
-                      batch_type: str = BatchType.REGULAR) -> List[Exercise]:
+                      batch_type: str = BatchType.REGULAR,
+                      forced_exercises: Optional[List[Exercise]] = None) -> List[Exercise]:
         """
         Genera una lista de ejercicios para un batch
         
@@ -39,6 +40,7 @@ class BatchGenerator:
             operacion: Operación principal
             nivel_invisible: Nivel de dificultad central
             batch_type: Tipo de batch deseado
+            forced_exercises: Lista de ejercicios pre-definidos (ej: repaso) a incluir
             
         Returns:
             Lista de objetos Exercise
@@ -49,16 +51,15 @@ class BatchGenerator:
         elif batch_type == BatchType.ENDLESS:
             return self._generate_endless_batch(operacion, nivel_invisible)
         else:
-            return self._generate_regular_batch(operacion, nivel_invisible)
+            return self._generate_regular_batch(operacion, nivel_invisible, forced_exercises)
             
-    def _generate_regular_batch(self, operacion: str, nivel_central: float) -> List[Exercise]:
+    def _generate_regular_batch(self, operacion: str, nivel_central: float, forced_exercises: List[Exercise] = None) -> List[Exercise]:
         """
-        Genera batch regular con distribución:
-        - Easy (2): nivel - 0.5
-        - Central (6): nivel
-        - Hard (2): nivel + 0.5
-        (Cantidades configurables en config_system)
+        Genera batch regular incluyendo ejercicios de repaso (forced) si existen.
+        Los ejercicios de repaso desplazan primero a los fáciles, luego centrales.
         """
+        if forced_exercises is None: forced_exercises = []
+        
         batch_config = self.config_manager.get_batch_config()
         
         count_easy = batch_config.get("distribution_easy", 2)
@@ -66,33 +67,44 @@ class BatchGenerator:
         count_hard = batch_config.get("distribution_hard", 2)
         total_size = batch_config.get("size", 10)
         
-        # Ajustar si la suma no da el total (prioridad al central)
-        current_total = count_easy + count_central + count_hard
-        if current_total != total_size:
-            count_central += (total_size - current_total)
-            
+        # Ajustar distribución basada en forced_exercises
+        # Asumimos que los forced ocupan lugar de Easy/Central (warmup)
+        # Reducimos counts para mantener total_size
+        to_reduce = len(forced_exercises)
+        
+        # Reducir Easy primero
+        removed_easy = min(to_reduce, count_easy)
+        count_easy -= removed_easy
+        to_reduce -= removed_easy
+        
+        # Reducir Central después
+        removed_central = min(to_reduce, count_central)
+        count_central -= removed_central
+        to_reduce -= removed_central
+        
+        # Reducir Hard si es absolutamente necesario (raro)
+        removed_hard = min(to_reduce, count_hard)
+        count_hard -= removed_hard
+        
         exercises = []
         
-        # Generar Easy
+        # 1. Agregar ejercicios forzados (Review) al principio
+        exercises.extend(forced_exercises)
+        
+        # 2. Generar Easy restantes
         level_easy = max(1.0, nivel_central - 0.5)
         for _ in range(count_easy):
             exercises.append(self.exercise_generator.generate_exercise(operacion, level_easy))
             
-        # Generar Central
+        # 3. Generar Central restantes
         for _ in range(count_central):
             exercises.append(self.exercise_generator.generate_exercise(operacion, nivel_central))
             
-        # Generar Hard
-        level_hard = min(6.0, nivel_central + 0.5) # Asumiendo 6.0 como tope teórico
+        # 4. Generar Hard restantes
+        level_hard = min(6.0, nivel_central + 0.5)
         for _ in range(count_hard):
             exercises.append(self.exercise_generator.generate_exercise(operacion, level_hard))
             
-        # Mezclar para que no sean secuenciales (o mantener estructura 'in crescendo'?)
-        # La descripción dice: "comenzar con más fáciles... finalizar con más difíciles"
-        # Entonces NO mezclamos aleatoriamente, mantenemos el orden Easy -> Central -> Hard
-        
-        # Nota: El prompt dice "Esta estructura busca generar confianza al inicio y reto moderado al final."
-        # Así que retornamos la lista ordenada: Easy -> Central -> Hard
         return exercises
 
     def _generate_miniboss_batch(self, operacion: str, nivel_invisible: float) -> List[Exercise]:

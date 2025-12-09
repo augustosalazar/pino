@@ -54,6 +54,7 @@ class Exercise:
     dificultad: float
     tipo_respuesta: str
     opciones: Optional[List[int]] = None
+    pending_ref: Optional[str] = None # ID de pine_pending_items si viene de repaso
     max_tiempo_segundos: int = 30
     
     @property
