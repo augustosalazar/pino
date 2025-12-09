@@ -244,18 +244,18 @@ class UserOperationState:
     def from_db_record(cls, record: dict) -> 'UserOperationState':
         """Crea instancia desde registro de BD"""
         return cls(
-            user_ref=record.get("user_ref", ""),
-            operacion=record.get("operacion", ""),
-            nivel_dominio=record.get("nivel_dominio", 1),
-            nivel_invisible=record.get("nivel_invisible", 1.0),
-            pd_operacion=record.get("pd_operacion", 0),
+            user_ref=record.get("user_ref") or "",
+            operacion=record.get("operacion") or "",
+            nivel_dominio=record.get("nivel_dominio") if record.get("nivel_dominio") is not None else 1,
+            nivel_invisible=record.get("nivel_invisible") if record.get("nivel_invisible") is not None else 1.0,
+            pd_operacion=record.get("pd_operacion") or 0,
             unlocked=record.get("unlocked", True),
             miniboss_completed=record.get("miniboss_completed", False),
-            miniboss_attempts=record.get("miniboss_attempts", 0),
-            batches_desde_ultimo_miniboss=record.get("batches_desde_ultimo_miniboss", 0),
-            miniboss_fallos_consecutivos=record.get("miniboss_fallos_consecutivos", 0),
-            total_ejercicios=record.get("total_ejercicios", 0),
-            total_correctos=record.get("total_correctos", 0)
+            miniboss_attempts=record.get("miniboss_attempts") or 0,
+            batches_desde_ultimo_miniboss=record.get("batches_desde_ultimo_miniboss") or 0,
+            miniboss_fallos_consecutivos=record.get("miniboss_fallos_consecutivos") or 0,
+            total_ejercicios=record.get("total_ejercicios") or 0,
+            total_correctos=record.get("total_correctos") or 0
         )
 
 
@@ -288,13 +288,13 @@ class UserGamificationState:
     def from_db_record(cls, record: dict) -> 'UserGamificationState':
         """Crea instancia desde registro de BD"""
         return cls(
-            user_ref=record.get("user_ref", ""),
-            pp_total=record.get("pp_total", 0),
-            pd_global=record.get("pd_global", 0),
-            xp_total=record.get("xp_total", 0),
-            nivel_jugador=record.get("nivel_jugador", 1),
-            racha_dias=record.get("racha_dias", 0),
-            racha_maxima=record.get("racha_maxima", 0),
-            dias_validos_streak=record.get("dias_validos_streak", 0),
+            user_ref=record.get("user_ref") or "",
+            pp_total=record.get("pp_total") or 0,
+            pd_global=record.get("pd_global") or 0,
+            xp_total=record.get("xp_total") or 0,
+            nivel_jugador=record.get("nivel_jugador") if record.get("nivel_jugador") is not None else 1,
+            racha_dias=record.get("racha_dias") or 0,
+            racha_maxima=record.get("racha_maxima") or 0,
+            dias_validos_streak=record.get("dias_validos_streak") or 0,
             racha_ultima_fecha=record.get("racha_ultima_fecha")
         )

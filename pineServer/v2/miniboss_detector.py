@@ -41,6 +41,10 @@ class MinibossDetector:
         
         # 2. Check: Batches suficientes desde último intento
         # Esto previene spam de miniboss inmediatos después de fallar
+
+        if state.batches_desde_ultimo_miniboss == None:
+            return False
+
         if state.batches_desde_ultimo_miniboss < min_batches:
             return False
             

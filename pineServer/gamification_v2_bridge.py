@@ -13,8 +13,9 @@ from typing import List, Dict
 from models import (
     StartSessionResponse, CompleteSessionResponse, 
     StartSessionRequest, CompleteSessionRequest,
-    MathExercise
+    Exercise
 )
+
 from roble_client import roble_client
 
 # V2 Components
@@ -51,7 +52,14 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
                 "operacion": "suma",
                 "nivel_dominio": 1,
                 "nivel_invisible": 1.0,
+                "pd_operacion": 0,
                 "unlocked": True,
+                "miniboss_completed": False,
+                "miniboss_attempts": 0,
+                "batches_desde_ultimo_miniboss": 0,
+                "miniboss_fallos_consecutivos": 0,
+                "total_ejercicios": 0,
+                "total_correctos": 0,
                 "updated_at": datetime.utcnow().isoformat()
             }
             roble_client.insert_records("pine_user_operations", [initial_op])
@@ -92,31 +100,29 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
             batch_type=batch_type
         )
         
-        # 5. Convertir a modelo legacy (MathExercise) para compatibilidad con response
-        legacy_exercises: List[MathExercise] = []
+        legacy_exercises: List[Exercise] = []
         
         # Mapeo de operador string a Enum legacy
         from models import Operator, ExerciseType
         op_map = {
-            "suma": Operator.ADDITION,
-            "resta": Operator.SUBTRACTION,
-            "mult": Operator.MULTIPLICATION,
-            "div": Operator.DIVISION
+            "suma": Operator.ADD,
+            "resta": Operator.SUBTRACT,
+            "mult": Operator.MULTIPLY,
+            "div": Operator.DIVIDE
         }
         
         for ex in v2_exercises:
             # Determinar tipo legacy
-            ex_type = ExerciseType.MULTIPLE_CHOICE if ex.tipo_respuesta == TipoRespuesta.MULTIPLE_CHOICE else ExerciseType.FREE_TEXT
+            ex_type = ExerciseType.MULTIPLE_CHOICE if ex.tipo_respuesta == TipoRespuesta.MULTIPLE_CHOICE else ExerciseType.TEXT_INPUT
             
-            legacy_exercises.append(MathExercise(
+            legacy_exercises.append(Exercise(
                 exercise_type=ex_type,
-                operator=op_map.get(ex.operacion, Operator.ADDITION),
+                operator=op_map.get(ex.operacion, Operator.ADD),
                 operand_1=ex.operand_1,
                 operand_2=ex.operand_2,
                 correct_answer=ex.respuesta_correcta,
                 options=ex.opciones,
-                difficulty_level=ex.dificultad,
-                time_limit_seconds=ex.max_tiempo_segundos
+                difficulty_level=ex.dificultad
             ))
             
         # 6. Crear registro de sesión (pine_exercise_sessions)
