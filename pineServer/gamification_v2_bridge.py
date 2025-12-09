@@ -33,6 +33,10 @@ from v2.models import (
     Operacion, TipoRespuesta
 )
 
+# Cache en memoria para metadata de sesiones V2
+# session_id -> metadata dict (evita alterar schema SQL existente)
+_V2_SESSION_METADATA_CACHE = {}
+
 # === START SESSION HANDLER ===
 
 async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionResponse:
@@ -126,30 +130,36 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
             ))
             
         # 6. Crear registro de sesión (pine_exercise_sessions)
-        # Usamos el modelo legacy para no romper reporting existente
+        # IMPORTANTE: No guardamos metadata V2 en DB para evitar errores de schema
         session_data = {
             "user_ref": user_ref,
-            "model_ref": "v2_adaptive", # Marcador para saber que fue V2
+            "model_ref": "v2_adaptive", # Marcador
             "total_exercises": len(legacy_exercises),
             "correct_answers": 0,
             "avg_difficulty": sum(e.dificultad for e in v2_exercises) / len(v2_exercises),
             "total_time_ms": 0,
-            "score_earned": 0,
-            # Metadata extra para V2
-            "v2_metadata": json.dumps({
-                "batch_type": batch_type,
-                "operacion": operacion,
-                "nivel_central": int(selected_op_state.nivel_invisible), # Aprox
-                "nivel_invisible": selected_op_state.nivel_invisible,
-                "is_miniboss": is_boss
-            })
+            "score_earned": 0
         }
         
+        print(f"[DEBUG V2] Inserting session data: {session_data}")
         res = roble_client.insert_records("pine_exercise_sessions", [session_data])
-        if not res.get("inserted"):
+        print(f"[DEBUG V2] Insert response: {res}")
+        
+        if not res or not res.get("inserted"):
+            print(f"[ERROR V2] Insert failed. Response: {res}")
             raise HTTPException(status_code=500, detail="Failed to create V2 session")
             
         session_id = res["inserted"][0]["_id"]
+        
+        # Guardar metadata en cache memoria
+        _V2_SESSION_METADATA_CACHE[session_id] = {
+            "batch_type": batch_type,
+            "operacion": operacion,
+            "nivel_central": int(selected_op_state.nivel_invisible),
+            "nivel_invisible": selected_op_state.nivel_invisible,
+            "is_miniboss": is_boss
+        }
+        print(f"[DEBUG V2] Metadata cached for session {session_id}")
         
         # 7. Construir respuesta
         # User profile mock para compatibilidad
@@ -189,16 +199,25 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
         session = sessions[0]
         user_ref = session.get("user_ref")
         
-        # Leer metadatos V2 storeados
-        v2_meta = {}
-        if session.get("v2_metadata"):
+        # Leer metadatos V2 storeados en cache (preferido) o DB
+        v2_meta = _V2_SESSION_METADATA_CACHE.get(session_id, {})
+        
+        # Fallback a DB si cache miss (no debería pasar en dev single-worker)
+        if not v2_meta and session.get("v2_metadata"):
             try:
                 v2_meta = json.loads(session.get("v2_metadata"))
             except: pass
             
+        print(f"[DEBUG V2] Retrieved metadata for session: {v2_meta}")
+            
         operacion_str = v2_meta.get("operacion", "suma")
         batch_type_str = v2_meta.get("batch_type", BatchType.REGULAR)
         nivel_invisible_antes = v2_meta.get("nivel_invisible", 1.0)
+        
+        # Si no hay metadatos, intentar recuperar de UserState (arriesgado porque pudo haber cambiado)
+        # O asumir defaults seguros (mejor)
+        if not v2_meta:
+             print("[WARN V2] Metadata missing for session, assuming basics")
         
         # 2. Convertir resultados legacy a V2 ExerciseResult
         v2_results: List[ExerciseResult] = []
