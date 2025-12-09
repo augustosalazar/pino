@@ -35,6 +35,10 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+# Habilitar colores en Windows
+if os.name == 'nt':
+    os.system('color')
+
 def print_header(text):
     print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*60}")
     print(f" {text}")
