@@ -50,21 +50,29 @@ def _get_pending_exercises(user_ref: str, operacion: str, limit: int = 2) -> Lis
         })
         
         if not pending: return []
+
+        print(f"[V2] Found {len(pending)} pending exercises for review")
         
         # Filtrar los que ya se mostraron recientemente?
         # Por ahora tomamos los más antiguos (FIFO) para asegurar que se repasen
-        pending.sort(key=lambda x: x.get('created_at', ''))
+        pending.sort(key=lambda x: x.get('fecha_ultimo_fallo', ''))
         selection = pending[:limit]
+
+        print(f"[V2] Selecting {len(selection)} pending exercises to include in batch")
         
         exercises = []
         for p in selection:
             ref = p.get("exercise_ref")
             if not ref: continue
+
+            print(f"[V2] Including pending exercise with ref {ref} in batch")
             
             # Buscar detalle en pine_exercises
             ex_data_list = roble_client.read_table("pine_exercises", {"_id": ref})
             if ex_data_list:
                 ex_rec = ex_data_list[0]
+
+                print(f"[V2] Retrieved exercise data: {ex_rec}")
                 
                 # Mapear tipo respuesta legacy (int) a V2 (str)
                 t_resp = TipoRespuesta.MULTIPLE_CHOICE if ex_rec.get("exercise_type") == 1 else TipoRespuesta.ABIERTA
@@ -158,6 +166,7 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
         forced_exercises = []
         if batch_type == BatchType.REGULAR:
             forced_exercises = _get_pending_exercises(user_ref, operacion)
+            print(f"[V2] Forcing {len(forced_exercises)} pending exercises into batch")
 
         # 4. Generar ejercicios
         batch_gen = get_batch_generator()

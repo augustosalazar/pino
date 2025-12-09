@@ -71,6 +71,8 @@ class BatchGenerator:
         # Asumimos que los forced ocupan lugar de Easy/Central (warmup)
         # Reducimos counts para mantener total_size
         to_reduce = len(forced_exercises)
+
+        print(f"[BatchGenerator] Forced exercises count: {to_reduce}")
         
         # Reducir Easy primero
         removed_easy = min(to_reduce, count_easy)

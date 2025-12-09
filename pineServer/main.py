@@ -46,7 +46,8 @@ from v2.models import (
 )
 
 # Feature Flag
-USE_GAMIFICATION_V2 = os.getenv("USE_GAMIFICATION_V2", "false").lower() == "true"
+#USE_GAMIFICATION_V2 = os.getenv("USE_GAMIFICATION_V2", "false").lower() == "true"
+USE_GAMIFICATION_V2 = True  # Always enabled for now
 print(f"[SYSTEM] Gamification V2 is {'ENABLED' if USE_GAMIFICATION_V2 else 'DISABLED'}")
 
 app = FastAPI(
