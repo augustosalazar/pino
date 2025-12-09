@@ -261,6 +261,36 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
             mb_eval = get_miniboss_evaluator()
             miniboss_aprobado = mb_eval.evaluate_miniboss(v2_results)
             
+        if batch_type_str == BatchType.MINIBOSS:
+            mb_eval = get_miniboss_evaluator()
+            miniboss_aprobado = mb_eval.evaluate_miniboss(v2_results)
+
+        # 3.5. Guardar ejercicios individuales en pine_exercises (Legacy Support)
+        # Esto permite que los analíticos antiguos sigan funcionando
+        try:
+            exercise_records_legacy = []
+            for ex in request.exercises:
+                rec = {
+                    "session_ref": session_id,
+                    "user_ref": user_ref,
+                    "exercise_type": ex.exercise_type.value,
+                    "operator": ex.operator.value,
+                    "operand_1": ex.operand_1,
+                    "operand_2": ex.operand_2,
+                    "correct_answer": ex.correct_answer,
+                    "user_answer": ex.user_answer,
+                    "options": json.dumps(ex.options) if ex.options else None,
+                    "difficulty_level": ex.difficulty_level,
+                    "is_correct": ex.is_correct,
+                    "time_taken_ms": ex.time_taken_ms
+                }
+                exercise_records_legacy.append(rec)
+            
+            roble_client.insert_records("pine_exercises", exercise_records_legacy)
+            print(f"[DEBUG V2] Legacy exercises saved: {len(exercise_records_legacy)}")
+        except Exception as e:
+            print(f"[V2 WARN] Failed to save legacy exercises (non-critical): {e}")
+            
         # 4. Guardar resultados (BatchRecorder)
         recorder = get_batch_recorder()
         
