@@ -26,6 +26,29 @@ from gamification_v2_test_endpoints import router as v2_test_router
 # Import V2 initialization module
 from gamification_v2_init import initialize_v2_data
 
+# ==================== GAMIFICATION V2 INTEGRATION ====================
+import os
+from datetime import datetime
+
+# V2 Core Components
+from v2.config_manager import get_config_manager
+from v2.batch_generator import get_batch_generator
+from v2.miniboss_detector import get_miniboss_detector
+from v2.miniboss_evaluator import get_miniboss_evaluator
+from v2.performance_evaluator import get_performance_evaluator
+from v2.scoring_calculator import get_scoring_calculator
+from v2.dominio_level_manager import get_dominio_level_manager
+from v2.batch_recorder import get_batch_recorder
+from v2.models import (
+    BatchType, UserOperationState, BatchResult, 
+    ExerciseResult, UserGamificationState, Exercise as V2Exercise,
+    Operacion, TipoRespuesta
+)
+
+# Feature Flag
+USE_GAMIFICATION_V2 = os.getenv("USE_GAMIFICATION_V2", "false").lower() == "true"
+print(f"[SYSTEM] Gamification V2 is {'ENABLED' if USE_GAMIFICATION_V2 else 'DISABLED'}")
+
 app = FastAPI(
     title="PineServer API",
     description="Math exercise generation and adaptive difficulty management",
@@ -249,6 +272,11 @@ async def start_session(request: StartSessionRequest):
     try:
         print(f"[DEBUG] Starting session for user: {request.user_ref}")
         
+        # V2 HOOK
+        if USE_GAMIFICATION_V2:
+            from gamification_v2_bridge import handle_start_session_v2
+            return await handle_start_session_v2(request)
+            
         # ==================== GET UNLOCKED OPERATIONS ====================
         # Get which operations the user has unlocked via gamification
         from gamification_unlocks import obtener_operaciones_disponibles
@@ -431,6 +459,11 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
     """
     try:
         print(f"[DEBUG] Completing session: {session_id}")
+        
+        # V2 HOOK
+        if USE_GAMIFICATION_V2:
+            from gamification_v2_bridge import handle_complete_session_v2
+            return await handle_complete_session_v2(session_id, request)
         
         # Get session
         sessions = roble_client.read_table("pine_exercise_sessions", {"_id": session_id})
