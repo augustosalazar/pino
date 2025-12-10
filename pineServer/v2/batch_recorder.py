@@ -251,17 +251,30 @@ class BatchRecorder:
 
     def _log_miniboss_attempt(self, result: BatchResult):
         """Registra el intento de miniboss"""
+        
+        # Calcular porcentaje
+        pct = 0.0
+        if result.total_ejercicios > 0:
+            pct = round(result.ejercicios_correctos / result.total_ejercicios, 2)
+            
         record = {
             "user_ref": result.user_ref,
-            "operacion": result.operacion,
-            "nivel_intentado": result.nivel_central, # Asumiendo que nivel central = nivel a aprobar
-            "aprobado": result.miniboss_aprobado,
-            "score": result.score_ganado,
-            "correctos": result.ejercicios_correctos,
-            "total": result.total_ejercicios,
-            "created_at": datetime.utcnow().isoformat()
+            "mini_jefe": result.operacion, # Schema expects 'mini_jefe'
+            "exito": result.miniboss_aprobado, # Schema expects 'exito'
+            "items_correctos": result.ejercicios_correctos, # Schema expects 'items_correctos'
+            "total_items": result.total_ejercicios, # Schema expects 'total_items'
+            "porcentaje_acierto": pct,
+            "tiempo_total_segundos": result.duracion_segundos if result.duracion_segundos else 0.0,
+            "fecha": datetime.utcnow().isoformat()
         }
-        roble_client.insert_records("pine_mini_jefes_intentos", [record])
+        
+        # Opcional: Si el miniboss desbloquea algo, calcularlo
+        # Por ahora lo dejamos nulo o lo calculamos si tenemos la logica
+        # record["operacion_desbloqueada"] = ...
+        
+        res = roble_client.insert_records("pine_mini_jefes_intentos", [record])
+        if res and not res.get("inserted"):
+             print(f"[BatchRecorder] Warning: Failed to insert miniboss log: {res}")
 
     def _save_pending_items(self, result: BatchResult):
         """Identifica errores y los guarda en pine_pending_items usando el esquema existente"""
