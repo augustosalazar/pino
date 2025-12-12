@@ -154,6 +154,7 @@ class BatchResult:
     miniboss_aprobado: Optional[bool] = None
     endless_streak: Optional[int] = None
     completado_en: datetime = field(default_factory=datetime.utcnow)
+    session_ref: Optional[str] = None  # ID de la sesión V2 asociada
     
     @property
     def total_ejercicios(self) -> int:

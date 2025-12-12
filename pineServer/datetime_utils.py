@@ -19,8 +19,6 @@ def now_colombia() -> datetime:
     Returns:
         datetime: Current datetime in America/Bogota timezone
     """
-
-    return datetime.utcnow().isoformat()
     return datetime.now(COLOMBIA_TZ)
 
 

@@ -207,6 +207,7 @@ def main():
     result_data = complete_session(session_id, resolved_exercises)
     
     if not result_data:
+        print(f"{Colors.FAIL}El servidor no valoro la sesión.{Colors.ENDC}")
         return
         
     # 5. Show Results

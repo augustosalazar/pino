@@ -69,6 +69,8 @@ class BatchRecorder:
         # Serializar ejercicios_data a string JSON si es necesario para Roble
         if "ejercicios_data" in record:
             record["ejercicios_data"] = json.dumps(record["ejercicios_data"])
+
+        record["session_ref"] = result.session_ref
             
         res = roble_client.insert_records("pine_batches_completados", [record])
         
@@ -300,7 +302,8 @@ class BatchRecorder:
                 "fecha_primer_fallo": timestamp,
                 "fecha_ultimo_fallo": timestamp,
                 "mostrado_nuevamente": False,
-                "completado": False
+                "completado": False,
+                "session_ref": result.session_ref,
             }
             pending_records.append(record)
             

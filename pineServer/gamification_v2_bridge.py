@@ -216,6 +216,7 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
         # IMPORTANTE: No guardamos metadata V2 en DB para evitar errores de schema
         session_data = {
             "user_ref": user_ref,
+            "started_at":  datetime.utcnow().isoformat(),
             "model_ref": "v2_adaptive", # Marcador
             "total_exercises": len(legacy_exercises),
             "correct_answers": 0,
@@ -273,8 +274,12 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
 async def handle_complete_session_v2(session_id: str, request: CompleteSessionRequest) -> CompleteSessionResponse:
     """Maneja la compleción de sesión usando lógica V2"""
     try:
-        print(f"[V2] Completing session {session_id}")
+        print(f"[V2] Completing session {session_id} {request}" )
         
+
+        total_correct = sum(1 for ex in request.exercises if ex.is_correct)
+        print(f"[V2] Total correct answers: {total_correct} / {len(request.exercises)}")
+         
         # 1. Recuperar sesión para obtener metadatos V2
         sessions = roble_client.read_table("pine_exercise_sessions", {"_id": session_id})
         if not sessions:
@@ -418,7 +423,8 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
             pd_ganados=score_calc.calculate_pd(v2_results),
             xp_ganada=score_calc.calculate_xp(v2_results),
             duracion_segundos=int(sum(r.tiempo_segundos for r in v2_results)),
-            miniboss_aprobado=miniboss_aprobado
+            miniboss_aprobado=miniboss_aprobado,
+            session_ref=session_id
         )
         
         success = recorder.record_batch(batch_result, current_gamif)
