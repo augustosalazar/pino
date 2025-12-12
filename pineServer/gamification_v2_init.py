@@ -3,6 +3,7 @@ Gamification V2 - Initialization Module
 Populates configuration tables on server startup if empty
 """
 
+from datetime_utils import now_colombia, now_colombia_iso
 from roble_client import roble_client
 from datetime import datetime
 import json  # ← Added
@@ -447,6 +448,7 @@ def initialize_v2_data():
     
     if system_ok and difficulty_ok:
         print("[INIT] ✅ All V2 configurations initialized successfully!")
+        print(now_colombia_iso())
     else:
         print("[INIT] ⚠️  Some configurations could not be initialized")
         print("[INIT] ℹ️  Server will continue, but V2 features may not work properly")

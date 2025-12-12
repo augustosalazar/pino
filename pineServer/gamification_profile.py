@@ -129,9 +129,14 @@ async def obtener_perfil_gamificacion(user_ref: str) -> Optional[Dict]:
         Perfil de gamificación o None si no existe
     """
     registros = roble_client.read_table('pine_user_gamification', {'user_ref': user_ref})
+
+    if registros:
+        print(f"[DEBUG] Retrieved {registros} profile for user_ref: {user_ref}")
     
     if registros:
         return registros[0]
+    
+    print(f"[DEBUG] No profile found for user_ref: {user_ref}")
     return None
 
 

@@ -75,6 +75,8 @@ class RobleClient:
             "tableName": table_name,
             "records": records
         }
+
+        print(f"[RobleClient] Inserting records into {table_name}: {records}")
         
         response = self.session.post(url, json=payload)
         
@@ -96,6 +98,8 @@ class RobleClient:
             "idValue": record_id,
             "updates": updates
         }
+
+        print(f"[RobleClient] Updating record {record_id} in table {table_name} with updates: {updates}")
         
         response = self.session.put(url, json=payload)
         

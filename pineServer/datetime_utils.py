@@ -19,6 +19,8 @@ def now_colombia() -> datetime:
     Returns:
         datetime: Current datetime in America/Bogota timezone
     """
+
+    return datetime.utcnow().isoformat()
     return datetime.now(COLOMBIA_TZ)
 
 
@@ -29,7 +31,18 @@ def now_colombia_iso() -> str:
     Returns:
         str: Current datetime in ISO format with timezone info
     """
+   # return now_colombia_iso_minutes()
     return now_colombia().isoformat()
+
+
+def now_colombia_iso_minutes() -> str:
+    """
+    Get current datetime in Colombian timezone formatted to minutes.
+
+    Returns:
+        str: Timestamp like "2025-12-09T16:23" in America/Bogota time
+    """
+    return now_colombia().strftime("%Y-%m-%dT%H:%M")
 
 
 def get_colombia_midnight() -> datetime:

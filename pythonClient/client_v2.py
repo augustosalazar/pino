@@ -166,7 +166,8 @@ def main():
         
     # Mostrar estado actual de gamificación si existe
     if 'gamification' in user_data:
-        gamif = user_data['gamification']
+        gamif = user_data['gamification']['perfil']
+        print(gamif)
         print(f"{Colors.CYAN}Estado Actual:{Colors.ENDC}")
         print(f" - Nivel: {gamif.get('nivel_jugador', 1)}")
         print(f" - XP: {gamif.get('xp_total', 0)}")

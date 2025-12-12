@@ -16,6 +16,7 @@ from models import (
     Exercise
 )
 
+from datetime_utils import now_colombia, now_colombia_iso
 from roble_client import roble_client
 
 # V2 Components
@@ -426,8 +427,11 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
         roble_client.update_record("pine_exercise_sessions", session_id, {
             "correct_answers": sum(1 for r in v2_results if r.es_correcto),
             "score_earned": score_earned,
-            "completed_at": datetime.utcnow().isoformat()
+            "completed_at": datetime.utcnow().isoformat(),
+            "total_time_ms": int(sum(r.tiempo_segundos for r in v2_results) * 1000)
         })
+        
+        print(f"[V2] Session {session_id} completed successfully at {now_colombia_iso()}")
         
         # 6. Responder
         # Ajustes de dificultad dummy para frontend legacy
@@ -451,7 +455,7 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
         
         print("\n" + "="*50)
         print("BATCH RESULTS RECEIVED")
-        print(f"Meta: {batch_type_str} | Op: {operacion_str} | Before: {nivel_invisible_antes:.2f} -> After: {nivel_invisible_nuevo:.2f}")
+        print(f"Meta: {batch_type_str} | Op: {operacion_str} | Invisible Before: {nivel_invisible_antes:.2f} -> Invisible After: {nivel_invisible_nuevo:.2f} Visible : {v2_meta.get('nivel_central', 1)}")
         print("-"*50)
         for i, res in enumerate(v2_results):
             mark = "✓" if res.es_correcto else "✗"

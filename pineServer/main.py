@@ -221,6 +221,8 @@ async def ensure_user(request: EnsureUserRequest):
                 "gamification": perfil_gamificacion
             }
         
+        print(f"[DEBUG] User {request.user_ref} not found, creating new user")
+        
         # User doesn't exist, create it
         user_data = {
             "user_ref": request.user_ref,
@@ -233,6 +235,8 @@ async def ensure_user(request: EnsureUserRequest):
         # Add institution_ref if provided
         if request.institution_ref:
             user_data["institution_ref"] = request.institution_ref
+        else:
+            user_data["institution_ref"] = "5TdXBMzeFfju" # Default institution 
         
         result = roble_client.insert_records("pine_users", [user_data])
         
