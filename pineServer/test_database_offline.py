@@ -126,6 +126,29 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             new_difficulty REAL,
             reason TEXT
         );
+
+        CREATE TABLE pine_user_gamification (
+            _id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_ref TEXT UNIQUE,
+            pp_total INTEGER,
+            pd_global INTEGER,
+            xp_total INTEGER,
+            racha_dias INTEGER,
+            racha_ultima_fecha TEXT
+        );
+
+        CREATE TABLE pine_batches_completados (
+            _id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_ref TEXT,
+            operacion TEXT,
+            score_ganado INTEGER,
+            pp_ganados INTEGER,
+            pd_ganados INTEGER,
+            xp_ganada INTEGER,
+            ejercicios_correctos INTEGER,
+            ejercicios_totales INTEGER,
+            dificultad_promedio REAL
+        );
         """
     )
     conn.commit()
@@ -213,6 +236,17 @@ def user_and_session(sqlite_client: SQLiteClient):
     }
     sqlite_client.insert_records("pine_difficulty_adjustments", [adjustment])
 
+    # Seed gamification profile
+    gamif = {
+        "user_ref": test_user_id,
+        "pp_total": 100,
+        "pd_global": 200,
+        "xp_total": 500,
+        "racha_dias": 2,
+        "racha_ultima_fecha": "2025-01-01",
+    }
+    sqlite_client.insert_records("pine_user_gamification", [gamif])
+
     return test_user_id, session_id
 
 
@@ -284,3 +318,88 @@ def test_delete_offline(sqlite_client: SQLiteClient, user_and_session):
         sqlite_client.read_table("pine_exercise_sessions", {"session_id": session_id})[0]["_id"],
     )
     assert sqlite_client.read_table("pine_exercise_sessions", {"session_id": session_id}) == []
+
+
+def _compute_score(correct: int, total: int, avg_difficulty: float) -> int:
+    errors = total - correct
+    base = correct * (5 + avg_difficulty)
+    participation = 10
+    penalty = 2 * errors
+    raw = base + participation - penalty
+    return max(0, int(raw))
+
+
+def _apply_streak(previous_days: int, correct: int, last_date: str, today: str) -> int:
+    """
+    Increment streak if >=4 correct and this is the first qualifying batch of the day.
+    Reset to 1 if user skipped a day.
+    """
+    if correct < 4:
+        return previous_days  # Hold steady, don't reset
+    
+    # Check if consecutive day
+    from datetime import datetime, timedelta
+    last = datetime.fromisoformat(last_date)
+    current = datetime.fromisoformat(today)
+    gap = (current - last).days
+    
+    if gap == 0:
+        # Same day, no increment
+        return previous_days
+    elif gap == 1:
+        # Consecutive day, increment
+        return min(30, previous_days + 1)
+    else:
+        # Skipped day(s), reset
+        return 1
+
+
+def _streak_score(days: int) -> int:
+    return 5 + 3 * days
+
+
+def test_score_and_streak_offline(sqlite_client: SQLiteClient, user_and_session):
+    user_ref, _ = user_and_session
+
+    # Case 1: 8/10 correct, avg difficulty 2.0
+    score = _compute_score(correct=8, total=10, avg_difficulty=2.0)
+    assert score == 62  # 8*(5+2)=56 +10 -4
+
+    # Case 2: 0 correct clamps to 0
+    score_zero = _compute_score(correct=0, total=10, avg_difficulty=2.0)
+    assert score_zero == 0
+
+    # Streak updates only if >=4 correct
+    gamif = sqlite_client.read_table("pine_user_gamification", {"user_ref": user_ref})[0]
+    new_streak = _apply_streak(gamif["racha_dias"], correct=6, last_date=gamif["racha_ultima_fecha"], today="2025-01-02")
+    sqlite_client.update_record(
+        "pine_user_gamification",
+        gamif["_id"],
+        {"racha_dias": new_streak, "racha_ultima_fecha": "2025-01-02"},
+    )
+
+    updated = sqlite_client.read_table("pine_user_gamification", {"user_ref": user_ref})[0]
+    assert updated["racha_dias"] == 3
+    assert _streak_score(updated["racha_dias"]) == 14
+
+    # Case: Second batch same day (no increment)
+    same_day_streak = _apply_streak(updated["racha_dias"], correct=5, last_date="2025-01-02", today="2025-01-02")
+    assert same_day_streak == 3
+
+    # Case: Skipped a day (reset to 1)
+    skipped = _apply_streak(updated["racha_dias"], correct=5, last_date="2025-01-02", today="2025-01-05")
+    assert skipped == 1
+
+    # Case: Cap at 30 days
+    sqlite_client.update_record(
+        "pine_user_gamification",
+        updated["_id"],
+        {"racha_dias": 30, "racha_ultima_fecha": "2025-01-10"},
+    )
+    capped = sqlite_client.read_table("pine_user_gamification", {"user_ref": user_ref})[0]
+    assert _apply_streak(capped["racha_dias"], correct=5, last_date="2025-01-10", today="2025-01-11") == 30
+    assert _streak_score(30) == 95
+
+    # Case: Less than 4 correct holds steady
+    hold = _apply_streak(3, correct=2, last_date="2025-01-03", today="2025-01-04")
+    assert hold == 3
