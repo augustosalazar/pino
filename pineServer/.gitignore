@@ -52,7 +52,6 @@ htmlcov/
 *.log
 
 # Project Specific
-test_*.py
 inspect_*.py
 setup_*.py
 create_tables.py
