@@ -34,7 +34,7 @@ echo ===============================================
 echo.
 
 REM Run tests
-python check_v2_tables.py
+python -m pytest pineServer/tests -v
 
 echo.
 echo ===============================================

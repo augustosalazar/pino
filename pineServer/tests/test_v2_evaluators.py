@@ -5,7 +5,7 @@ Tests para Evaluadores V2 (Performance, Scoring, Level)
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from pineServer.v2.performance_evaluator import get_performance_evaluator
 from pineServer.v2.scoring_calculator import get_scoring_calculator

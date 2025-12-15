@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 import pytest
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from pineServer.v2.batch_recorder import get_batch_recorder
 from pineServer.v2.models import BatchResult, ExerciseResult, Exercise, UserGamificationState, BatchType

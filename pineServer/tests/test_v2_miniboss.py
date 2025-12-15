@@ -5,7 +5,7 @@ Tests para Sistema Miniboss V2
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from pineServer.v2.miniboss_detector import get_miniboss_detector
 from pineServer.v2.miniboss_evaluator import get_miniboss_evaluator

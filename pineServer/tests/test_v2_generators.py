@@ -6,7 +6,7 @@ import sys
 import os
 import math
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from pineServer.v2.exercise_generator import get_exercise_generator
 from pineServer.v2.batch_generator import get_batch_generator
