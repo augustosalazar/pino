@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from roble_client import roble_client
 from v2.models import BatchResult, ExerciseResult, UserGamificationState, UserOperationState, BatchType
 from v2.config_manager import get_config_manager
+from datetime_utils import now_colombia, now_utc_iso
 
 class BatchRecorder:
     
@@ -161,7 +162,7 @@ class BatchRecorder:
                 "total_ejercicios": op_state.total_ejercicios,
                 "total_correctos": op_state.total_correctos,
                 "miniboss_completed": op_state.miniboss_completed,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": now_utc_iso()
             }
             # Usar internal method o implementar update_record en client si existe
             # Asumimos que podemos usar insert_records con lógica de upsert o delete+insert manual
@@ -175,7 +176,7 @@ class BatchRecorder:
                 "nivel_dominio": op_state.nivel_dominio,
                 "nivel_invisible": op_state.nivel_invisible,
                 "pd_operacion": op_state.pd_operacion,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": now_utc_iso()
                 # ... otros campos default
             }
             roble_client.insert_records("pine_user_operations", [new_record])
@@ -187,7 +188,7 @@ class BatchRecorder:
         min_correct_streak = streak_config.get("min_correct", 4)
         
         # 1. Calcular Streak lógica
-        today_str = datetime.utcnow().date().isoformat()
+        today_str = now_colombia().date().isoformat()
         last_date_str = current_state.racha_ultima_fecha
         
         new_streak = current_state.racha_dias
@@ -200,7 +201,7 @@ class BatchRecorder:
                 pass
             else:
                 # Verificar si es consecutivo
-                yesterday = (datetime.utcnow().date() - timedelta(days=1)).isoformat()
+                yesterday = (now_colombia().date() - timedelta(days=1)).isoformat()
                 if last_date_str == yesterday:
                     new_streak += 1
                 else:
@@ -236,7 +237,7 @@ class BatchRecorder:
             "xp_total": total_xp,
             "racha_dias": new_streak,
             "racha_maxima": max(current_state.racha_maxima, new_streak),
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": now_utc_iso()
         }
         
         if streak_updated:
@@ -267,7 +268,7 @@ class BatchRecorder:
             "total_items": result.total_ejercicios, # Schema expects 'total_items'
             "porcentaje_acierto": pct,
             "tiempo_total_segundos": result.duracion_segundos if result.duracion_segundos else 0.0,
-            "fecha": datetime.utcnow().isoformat()
+            "fecha": now_utc_iso()
         }
         
         # Opcional: Si el miniboss desbloquea algo, calcularlo
@@ -294,7 +295,7 @@ class BatchRecorder:
             return
 
         pending_records = []
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = now_utc_iso()
         
         for fail in failed_exercises:
             record = {

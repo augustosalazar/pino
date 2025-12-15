@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 # Colombian timezone
 COLOMBIA_TZ = ZoneInfo("America/Bogota")
+UTC_TZ = ZoneInfo("UTC")
 
 
 def now_colombia() -> datetime:
@@ -31,6 +32,41 @@ def now_colombia_iso() -> str:
     """
    # return now_colombia_iso_minutes()
     return now_colombia().isoformat()
+
+
+def now_utc() -> datetime:
+    """
+    Get current datetime in UTC timezone.
+
+    Returns:
+        datetime: Current datetime in UTC
+    """
+    return datetime.now(UTC_TZ)
+
+
+def now_utc_iso() -> str:
+    """
+    Get current UTC datetime as ISO string with Z suffix.
+
+    Returns:
+        str: ISO8601 string in UTC (e.g., 2025-12-15T12:34:56Z)
+    """
+    return now_utc().isoformat().replace("+00:00", "Z")
+
+
+def to_utc_iso(dt: datetime) -> str:
+    """
+    Convert a datetime (naive assumed Colombia) to UTC ISO string.
+
+    Args:
+        dt: Datetime object, naive assumed Colombia time
+
+    Returns:
+        str: ISO8601 string in UTC with Z suffix
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=COLOMBIA_TZ)
+    return dt.astimezone(UTC_TZ).isoformat().replace("+00:00", "Z")
 
 
 def now_colombia_iso_minutes() -> str:
@@ -104,6 +140,16 @@ def get_current_date_colombia() -> str:
         str: Current date in YYYY-MM-DD format
     """
     return now_colombia().strftime("%Y-%m-%d")
+
+
+def today_colombia_iso() -> str:
+    """
+    Get today's date in Colombia as ISO date string (YYYY-MM-DD).
+
+    Returns:
+        str: Current date for America/Bogota in ISO format
+    """
+    return now_colombia().date().isoformat()
 
 
 def get_current_time_colombia() -> str:

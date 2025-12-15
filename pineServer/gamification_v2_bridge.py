@@ -7,6 +7,7 @@ con la nueva lógica de negocio V2. Permite una migración limpia y gradual.
 
 from fastapi import HTTPException
 from datetime import datetime
+from datetime_utils import now_utc_iso
 import json
 from typing import List, Dict
 
@@ -131,7 +132,7 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
                 "miniboss_fallos_consecutivos": 0,
                 "total_ejercicios": 0,
                 "total_correctos": 0,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": now_utc_iso()
             }
             roble_client.insert_records("pine_user_operations", [initial_op])
             ops_records = [initial_op]
@@ -418,7 +419,7 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
         roble_client.update_record("pine_exercise_sessions", session_id, {
             "correct_answers": sum(1 for r in v2_results if r.es_correcto),
             "score_earned": score_earned,
-            "completed_at": datetime.utcnow().isoformat()
+            "completed_at": now_utc_iso()
         })
         
         # 6. Responder
