@@ -9,8 +9,8 @@ para garantizar integridad.
 import sys
 import os
 import json
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from datetime import datetime, timedelta, date
+from typing import Optional, Dict, Any, List
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -47,6 +47,9 @@ class BatchRecorder:
             
             # 3. Actualizar pine_user_gamification (incluyendo streak)
             self._update_user_gamification(result, current_gamif_state)
+            
+            # 3.5. Actualizar pine_weekly_leaderboard
+            self._update_weekly_leaderboard(result)
             
             # 4. Registrar intento de miniboss si aplica
             if result.batch_type == BatchType.MINIBOSS:
@@ -319,6 +322,145 @@ class BatchRecorder:
                 print(f"[BatchRecorder] Saved {len(pending_records)} pending items")
             except Exception as e:
                 print(f"[BatchRecorder] Failed to save pending items: {e}")
+
+    def _get_week_dates(self, reference_date: date = None) -> tuple:
+        """
+        Calcula fecha_inicio y fecha_fin de la semana actual.
+        Colombia: Semana = Lunes a Domingo
+        
+        Returns:
+            (fecha_inicio, fecha_fin) como datetime objetos en UTC
+        """
+        if reference_date is None:
+            reference_date = now_colombia().date()
+        
+        # Lunes = 0, Domingo = 6
+        days_since_monday = reference_date.weekday()  # 0=Monday
+        monday = reference_date - timedelta(days=days_since_monday)
+        sunday = monday + timedelta(days=6)
+        
+        # Convertir a datetime en UTC (inicio de lunes y fin de domingo)
+        fecha_inicio = datetime.combine(monday, datetime.min.time())
+        fecha_fin = datetime.combine(sunday, datetime.max.time())
+        
+        return fecha_inicio, fecha_fin
+
+    def _update_weekly_leaderboard(self, result: BatchResult):
+        """
+        Actualiza o crea registro en pine_weekly_leaderboard.
+        
+        Acumula PP, PD y score para la semana actual y gestiona ranking.
+        """
+        try:
+            fecha_inicio, fecha_fin = self._get_week_dates()
+            
+            # Buscar si ya existe registro para esta semana
+            weekly_records = roble_client.read_table(
+                "pine_weekly_leaderboard",
+                {
+                    "user_ref": result.user_ref,
+                    "semana_id": self._generate_semana_id(fecha_inicio)
+                }
+            )
+            
+            if weekly_records:
+                # Actualizar existente
+                record = weekly_records[0]
+                record_id = record.get("_id")
+                
+                updates = {
+                    "pp_semana": record.get("pp_semana", 0) + result.pp_ganados,
+                    "pd_semana": record.get("pd_semana", 0) + result.pd_ganados,
+                    "score_semanal": round(
+                        record.get("score_semanal", 0) + result.score_ganado,
+                        2
+                    ),
+                }
+                
+                roble_client.update_record("pine_weekly_leaderboard", record_id, updates)
+                print(f"[BatchRecorder] Updated weekly leaderboard for {result.user_ref}")
+                
+            else:
+                # Insertar nuevo
+                new_record = {
+                    "user_ref": result.user_ref,
+                    "semana_id": self._generate_semana_id(fecha_inicio),
+                    "pp_semana": result.pp_ganados,
+                    "pd_semana": result.pd_ganados,
+                    "score_semanal": result.score_ganado,
+                    "ranking": 0,  # Se calculará al final de la semana
+                    "fecha_inicio": fecha_inicio.isoformat(),
+                    "fecha_fin": fecha_fin.isoformat(),
+                    "created_at": now_utc_iso(),
+                }
+                
+                roble_client.insert_records("pine_weekly_leaderboard", [new_record])
+                print(f"[BatchRecorder] Created new weekly leaderboard entry for {result.user_ref}")
+                
+            # Opcionalmente, recalcular rankings para la semana
+            self._recalculate_weekly_rankings(fecha_inicio, fecha_fin)
+            
+        except Exception as e:
+            print(f"[BatchRecorder] Warning: Failed to update weekly leaderboard: {e}")
+            # No fallar el batch completo si el leaderboard falla
+
+    def _generate_semana_id(self, fecha_inicio: datetime) -> str:
+        """
+        Genera un ID único para la semana basado en la fecha de inicio.
+        Formato: YYYY-W## (ej: 2025-W02)
+        """
+        fecha_date = fecha_inicio.date() if isinstance(fecha_inicio, datetime) else fecha_inicio
+        iso_calendar = fecha_date.isocalendar()
+        return f"{iso_calendar[0]}-W{iso_calendar[1]:02d}"
+
+    def _recalculate_weekly_rankings(self, fecha_inicio: datetime, fecha_fin: datetime):
+        """
+        Recalcula los rankings (posiciones) para todos los usuarios en la semana.
+        Ordena por pp_semana descendente (primario) y score_semanal (secundario).
+        """
+        try:
+            semana_id = self._generate_semana_id(fecha_inicio)
+            
+            # Obtener todos los registros de la semana
+            all_weekly = roble_client.read_table(
+                "pine_weekly_leaderboard",
+                {}  # Sin filtro, obtenemos todos
+            )
+            
+            # Filtrar por semana_id
+            semana_records = [
+                r for r in all_weekly
+                if r.get("semana_id") == semana_id
+            ]
+            
+            if not semana_records:
+                return
+            
+            # Ordenar: primero PP (desc), luego score (desc)
+            sorted_records = sorted(
+                semana_records,
+                key=lambda x: (
+                    x.get("pp_semana", 0),
+                    x.get("score_semanal", 0)
+                ),
+                reverse=True
+            )
+            
+            # Asignar rankings
+            for rank, record in enumerate(sorted_records, start=1):
+                record_id = record.get("_id")
+                if record_id and record.get("ranking") != rank:
+                    roble_client.update_record(
+                        "pine_weekly_leaderboard",
+                        record_id,
+                        {"ranking": rank}
+                    )
+            
+            print(f"[BatchRecorder] Recalculated rankings for week {semana_id}: {len(sorted_records)} users")
+            
+        except Exception as e:
+            print(f"[BatchRecorder] Warning: Failed to recalculate weekly rankings: {e}")
+            # No es crítico, no fallar el batch
 
 # Singleton
 _batch_recorder_instance = None

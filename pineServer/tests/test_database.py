@@ -281,6 +281,7 @@ def test_roble_schema_tables_exist(client: RobleDBClient):
         "pine_user_operations": {"user_ref", "operacion", "nivel_dominio"},
         "pine_batches_completados": {"user_ref", "operacion", "batch_type"},
         "pine_mini_jefes_intentos": {"user_ref", "operacion", "aprobado"},
+        "pine_weekly_leaderboard": {"user_ref", "semana_id", "pp_semana", "ranking"},
     }
 
     for table, expected_keys in tables_and_keys.items():
