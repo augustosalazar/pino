@@ -258,6 +258,17 @@ def session_id(user_and_session):
     return user_and_session[1]
 
 
+def test_roble_connectivity():
+    """Test basic connectivity to Roble API before running authenticated tests."""
+    base_url = os.getenv("ROBLE_BASE_URL", "https://roble-api.openlab.uninorte.edu.co")
+    
+    if os.getenv("RUN_ROBLE_TESTS") not in {"1", "true", "True", "yes", "on"}:
+        pytest.skip("Roble tests disabled; set RUN_ROBLE_TESTS=1 to enable.")
+    
+    response = requests.get(base_url, timeout=5)
+    assert response.status_code in {200, 301, 302, 404}, f"Base URL unreachable: {response.status_code}"
+
+
 def test_roble_schema_tables_exist(client: RobleDBClient):
     """Validate Roble tables respond and include expected keys without mutating data."""
     tables_and_keys = {
