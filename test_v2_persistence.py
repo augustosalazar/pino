@@ -19,6 +19,12 @@ from pineServer.roble_client import roble_client
 
 USER_REF = "test_persist_user_v2"
 
+# Skip all tests if RUN_ROBLE_TESTS is not set
+pytestmark = pytest.mark.skipif(
+    os.getenv("RUN_ROBLE_TESTS") not in {"1", "true", "True", "yes", "on"},
+    reason="Roble integration tests disabled; set RUN_ROBLE_TESTS=1 to enable."
+)
+
 
 @pytest.fixture(autouse=True, scope="module")
 def _ensure_seed_data():

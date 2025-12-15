@@ -141,13 +141,39 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             _id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_ref TEXT,
             operacion TEXT,
+            batch_type TEXT,
             score_ganado INTEGER,
             pp_ganados INTEGER,
             pd_ganados INTEGER,
             xp_ganada INTEGER,
             ejercicios_correctos INTEGER,
             ejercicios_totales INTEGER,
-            dificultad_promedio REAL
+            dificultad_promedio REAL,
+            nivel_central INTEGER,
+            nivel_invisible_antes REAL,
+            nivel_invisible_despues REAL,
+            fecha_completado TEXT
+        );
+
+        CREATE TABLE pine_user_operations (
+            _id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_ref TEXT,
+            operacion TEXT,
+            nivel_dominio INTEGER,
+            nivel_invisible REAL,
+            batches_desde_ultimo_miniboss INTEGER,
+            miniboss_completed INTEGER DEFAULT 0,
+            UNIQUE(user_ref, operacion)
+        );
+
+        CREATE TABLE pine_mini_jefes_intentos (
+            _id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_ref TEXT,
+            operacion TEXT,
+            nivel_dominio INTEGER,
+            aprobado INTEGER,
+            score_obtenido INTEGER,
+            fecha_intento TEXT
         );
         """
     )
@@ -246,6 +272,17 @@ def user_and_session(sqlite_client: SQLiteClient):
         "racha_ultima_fecha": "2025-01-01",
     }
     sqlite_client.insert_records("pine_user_gamification", [gamif])
+
+    # Seed operation state
+    operation = {
+        "user_ref": test_user_id,
+        "operacion": "suma",
+        "nivel_dominio": 2,
+        "nivel_invisible": 2.5,
+        "batches_desde_ultimo_miniboss": 1,
+        "miniboss_completed": 0,
+    }
+    sqlite_client.insert_records("pine_user_operations", [operation])
 
     return test_user_id, session_id
 
@@ -403,3 +440,142 @@ def test_score_and_streak_offline(sqlite_client: SQLiteClient, user_and_session)
     # Case: Less than 4 correct holds steady
     hold = _apply_streak(3, correct=2, last_date="2025-01-03", today="2025-01-04")
     assert hold == 3
+
+
+def test_record_regular_batch_offline(sqlite_client: SQLiteClient, user_and_session):
+    """Test recording a regular batch completion offline"""
+    user_ref, _ = user_and_session
+    
+    # Initial state
+    gamif = sqlite_client.read_table("pine_user_gamification", {"user_ref": user_ref})[0]
+    operation = sqlite_client.read_table("pine_user_operations", {"user_ref": user_ref, "operacion": "suma"})[0]
+    
+    initial_pp = gamif["pp_total"]
+    initial_batches_since_boss = operation["batches_desde_ultimo_miniboss"]
+    
+    # Simulate batch completion
+    batch_record = {
+        "user_ref": user_ref,
+        "operacion": "suma",
+        "batch_type": "regular",
+        "score_ganado": 100,
+        "pp_ganados": 10,
+        "pd_ganados": 50,
+        "xp_ganada": 100,
+        "ejercicios_correctos": 8,
+        "ejercicios_totales": 10,
+        "dificultad_promedio": 2.5,
+        "nivel_central": 2,
+        "nivel_invisible_antes": 2.5,
+        "nivel_invisible_despues": 2.7,
+        "fecha_completado": "2025-01-02T10:30:00",
+    }
+    sqlite_client.insert_records("pine_batches_completados", [batch_record])
+    
+    # Update operation state
+    sqlite_client.update_record(
+        "pine_user_operations",
+        operation["_id"],
+        {
+            "nivel_invisible": 2.7,
+            "batches_desde_ultimo_miniboss": initial_batches_since_boss + 1,
+        },
+    )
+    
+    # Update gamification state
+    new_streak = _apply_streak(gamif["racha_dias"], correct=8, last_date=gamif["racha_ultima_fecha"], today="2025-01-02")
+    sqlite_client.update_record(
+        "pine_user_gamification",
+        gamif["_id"],
+        {
+            "pp_total": initial_pp + 10,
+            "pd_global": gamif["pd_global"] + 50,
+            "xp_total": gamif["xp_total"] + 100,
+            "racha_dias": new_streak,
+            "racha_ultima_fecha": "2025-01-02",
+        },
+    )
+    
+    # Verify batch record
+    batches = sqlite_client.read_table("pine_batches_completados", {"user_ref": user_ref})
+    assert len(batches) == 1
+    assert batches[0]["score_ganado"] == 100
+    assert batches[0]["batch_type"] == "regular"
+    
+    # Verify operation update
+    updated_op = sqlite_client.read_table("pine_user_operations", {"user_ref": user_ref, "operacion": "suma"})[0]
+    assert updated_op["nivel_invisible"] == 2.7
+    assert updated_op["batches_desde_ultimo_miniboss"] == 2
+    
+    # Verify gamification update
+    updated_gamif = sqlite_client.read_table("pine_user_gamification", {"user_ref": user_ref})[0]
+    assert updated_gamif["pp_total"] == 110
+    assert updated_gamif["racha_dias"] == 3  # Consecutive day increment
+
+
+def test_record_miniboss_batch_offline(sqlite_client: SQLiteClient, user_and_session):
+    """Test recording a miniboss batch completion offline"""
+    user_ref, _ = user_and_session
+    
+    # Initial state
+    operation = sqlite_client.read_table("pine_user_operations", {"user_ref": user_ref, "operacion": "suma"})[0]
+    
+    # Simulate miniboss completion (success)
+    batch_record = {
+        "user_ref": user_ref,
+        "operacion": "suma",
+        "batch_type": "miniboss",
+        "score_ganado": 200,
+        "pp_ganados": 10,
+        "pd_ganados": 0,
+        "xp_ganada": 0,
+        "ejercicios_correctos": 6,
+        "ejercicios_totales": 6,
+        "dificultad_promedio": 2.9,
+        "nivel_central": 2,
+        "nivel_invisible_antes": 2.9,
+        "nivel_invisible_despues": 3.0,
+        "fecha_completado": "2025-01-03T15:45:00",
+    }
+    sqlite_client.insert_records("pine_batches_completados", [batch_record])
+    
+    # Record miniboss attempt
+    miniboss_attempt = {
+        "user_ref": user_ref,
+        "operacion": "suma",
+        "nivel_dominio": 2,
+        "aprobado": 1,
+        "score_obtenido": 200,
+        "fecha_intento": "2025-01-03T15:45:00",
+    }
+    sqlite_client.insert_records("pine_mini_jefes_intentos", [miniboss_attempt])
+    
+    # Update operation state (level up)
+    sqlite_client.update_record(
+        "pine_user_operations",
+        operation["_id"],
+        {
+            "nivel_dominio": 3,
+            "nivel_invisible": 3.0,
+            "batches_desde_ultimo_miniboss": 0,
+            "miniboss_completed": 1,
+        },
+    )
+    
+    # Verify batch record
+    batches = sqlite_client.read_table("pine_batches_completados", {"user_ref": user_ref, "batch_type": "miniboss"})
+    assert len(batches) == 1
+    assert batches[0]["score_ganado"] == 200
+    
+    # Verify miniboss attempt
+    attempts = sqlite_client.read_table("pine_mini_jefes_intentos", {"user_ref": user_ref})
+    assert len(attempts) == 1
+    assert attempts[0]["aprobado"] == 1
+    assert attempts[0]["nivel_dominio"] == 2
+    
+    # Verify level up
+    updated_op = sqlite_client.read_table("pine_user_operations", {"user_ref": user_ref, "operacion": "suma"})[0]
+    assert updated_op["nivel_dominio"] == 3
+    assert updated_op["nivel_invisible"] == 3.0
+    assert updated_op["batches_desde_ultimo_miniboss"] == 0
+    assert updated_op["miniboss_completed"] == 1

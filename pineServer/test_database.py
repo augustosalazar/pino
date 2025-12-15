@@ -277,6 +277,10 @@ def test_roble_schema_tables_exist(client: RobleDBClient):
         "pine_exercise_sessions": {"session_id", "user_id", "total_exercises"},
         "pine_exercises": {"session_id", "user_id", "exercise_type"},
         "pine_difficulty_adjustments": {"session_id", "user_id", "operator"},
+        "pine_user_gamification": {"user_ref", "pp_total", "racha_dias"},
+        "pine_user_operations": {"user_ref", "operacion", "nivel_dominio"},
+        "pine_batches_completados": {"user_ref", "operacion", "batch_type"},
+        "pine_mini_jefes_intentos": {"user_ref", "operacion", "aprobado"},
     }
 
     for table, expected_keys in tables_and_keys.items():
