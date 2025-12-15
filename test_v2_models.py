@@ -42,7 +42,7 @@ def test_exercise():
     assert ex_dict["problem"] == "5 + 3"
     
     print("✅ Exercise test PASSED")
-    return True
+    
 
 
 def test_exercise_result():
@@ -71,7 +71,7 @@ def test_exercise_result():
     assert result_dict["respuesta_correcta"] == 8
     
     print("✅ ExerciseResult test PASSED")
-    return True
+    
 
 
 def test_batch_result():
@@ -114,7 +114,7 @@ def test_batch_result():
     print(f"✓ to_dict keys: {list(batch_dict.keys())[:5]}...")
     
     print("✅ BatchResult test PASSED")
-    return True
+    
 
 
 def test_user_operation_state():
@@ -150,7 +150,7 @@ def test_user_operation_state():
     assert state.accuracy == 0.85
     
     print("✅ UserOperationState test PASSED")
-    return True
+    
 
 
 def test_enums():
@@ -168,7 +168,7 @@ def test_enums():
     assert BatchType.MINIBOSS.value == "miniboss"
     
     print("✅ Enums test PASSED")
-    return True
+    
 
 
 def run_all_tests():

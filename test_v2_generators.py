@@ -43,7 +43,7 @@ def test_exercise_generator_interpolation():
         print(f"Lvl 1.5 -> {ex.problem}")
         
     print("✅ Interpolation logic executed without errors")
-    return True
+    
 
 def test_operations_logic():
     """Verifica lógica específica de cada operación"""
@@ -68,7 +68,7 @@ def test_operations_logic():
         assert ex.operand_1 == ex.operand_2 * ex.respuesta_correcta
         
     print("✅ Operations logic valid")
-    return True
+    
 
 def test_batch_distribution():
     """Verifica la distribución 2-6-2 del batch regular"""
@@ -99,7 +99,7 @@ def test_batch_distribution():
     assert diffs[8] >= 2.5 and diffs[9] >= 2.5, "Last 2 should be harder"
     
     print("✅ 2-6-2 Distribution valid")
-    return True
+    
 
 def test_miniboss_batch():
     """Verifica batch de miniboss (todo abierta)"""
@@ -120,7 +120,7 @@ def test_miniboss_batch():
     assert all(ex.opciones is None for ex in batch), "Miniboss should have no options"
     
     print("✅ Miniboss batch valid")
-    return True
+    
 
 def run_all_tests():
     tests = [

@@ -9,6 +9,7 @@ import sys
 import os
 import time
 from datetime import datetime
+import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -17,6 +18,12 @@ from pineServer.v2.models import BatchResult, ExerciseResult, Exercise, UserGami
 from pineServer.roble_client import roble_client
 
 USER_REF = "test_persist_user_v2"
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _ensure_seed_data():
+    """Seed test data before each module run to avoid missing records."""
+    setup_test_data()
 
 def setup_test_data():
     """Limpia datos anteriores del usuario de prueba"""
@@ -53,7 +60,14 @@ def setup_test_data():
         "nivel_invisible": 2.5,
         "batches_desde_ultimo_miniboss": 1
     }])
-    
+    # Give the backend a moment to persist before test reads
+    time.sleep(0.5)
+
+    gamif = roble_client.read_table("pine_user_gamification", {"user_ref": USER_REF})
+    ops = roble_client.read_table("pine_user_operations", {"user_ref": USER_REF, "operacion": "suma"})
+    if not gamif or not ops:
+        pytest.skip("Seed data not available in Roble (check credentials/connectivity).")
+
     print("Setup complete.")
 
 def test_record_regular_batch():
@@ -85,7 +99,14 @@ def test_record_regular_batch():
     
     # 2. Get current gamif state (mocked or read)
     # Leemos de BD para ser realistas
-    gamif_rec = roble_client.read_table("pine_user_gamification", {"user_ref": USER_REF})[0]
+    gamif_records = roble_client.read_table("pine_user_gamification", {"user_ref": USER_REF})
+    if not gamif_records:
+        setup_test_data()
+        gamif_records = roble_client.read_table("pine_user_gamification", {"user_ref": USER_REF})
+    if not gamif_records:
+        pytest.skip("Seed gamification record missing; cannot validate persistence.")
+
+    gamif_rec = gamif_records[0]
     current_gamif = UserGamificationState.from_db_record(gamif_rec)
     
     # 3. Record
@@ -122,7 +143,7 @@ def test_record_regular_batch():
     assert gamif['racha_dias'] == 1 
     
     print("✅ Regular Batch Recording passed")
-    return True
+    
 
 def test_record_miniboss_batch():
     print("\n" + "="*60)
@@ -147,7 +168,14 @@ def test_record_miniboss_batch():
         pp_ganados=10
     )
     
-    gamif_rec = roble_client.read_table("pine_user_gamification", {"user_ref": USER_REF})[0]
+    gamif_records = roble_client.read_table("pine_user_gamification", {"user_ref": USER_REF})
+    if not gamif_records:
+        setup_test_data()
+        gamif_records = roble_client.read_table("pine_user_gamification", {"user_ref": USER_REF})
+    if not gamif_records:
+        pytest.skip("Seed gamification record missing; cannot validate persistence.")
+
+    gamif_rec = gamif_records[0]
     current_gamif = UserGamificationState.from_db_record(gamif_rec)
     
     success = recorder.record_batch(result, current_gamif)
@@ -167,7 +195,7 @@ def test_record_miniboss_batch():
     assert ops['miniboss_completed'] == True
     
     print("✅ Miniboss Recording passed")
-    return True
+    
 
 def run_all_tests():
     try:
@@ -180,8 +208,14 @@ def run_all_tests():
         
         passed = 0
         for test in tests:
-            if test(): passed += 1
-            
+            try:
+                test()
+                passed += 1
+            except Exception as e:
+                print(f"\n❌ Test failed: {e}")
+                import traceback
+                traceback.print_exc()
+        
         print("\n" + "="*60)
         print(f"Summary: {passed}/{len(tests)} tests passed")
         

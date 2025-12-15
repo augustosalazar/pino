@@ -44,7 +44,6 @@ def test_system_config():
     assert non_existent == "DEFAULT", "Default value should work"
     
     print("✅ System config test PASSED")
-    return True
 
 
 def test_difficulty_config():
@@ -86,7 +85,6 @@ def test_difficulty_config():
     assert non_existent is None, "Non-existent config should return None"
     
     print("✅ Difficulty config test PASSED")
-    return True
 
 
 def test_helper_methods():
@@ -132,7 +130,7 @@ def test_helper_methods():
     assert all(k in batch for k in ["size", "distribution_easy", "distribution_central", "distribution_hard"])
     
     print("✅ Helper methods test PASSED")
-    return True
+    
 
 
 def run_all_tests():
@@ -151,7 +149,8 @@ def run_all_tests():
     
     for test_name, test_func in tests:
         try:
-            results[test_name] = test_func()
+            test_func()
+            results[test_name] = True
         except Exception as e:
             print(f"\n❌ {test_name} FAILED: {e}")
             import traceback

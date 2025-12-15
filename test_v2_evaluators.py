@@ -52,7 +52,6 @@ def test_performance_evaluator():
     assert new_lvl_max == 6.0
     
     print("✅ Performance Evaluator passed")
-    return True
 
 def test_scoring_calculator():
     print("\n" + "="*60)
@@ -112,7 +111,6 @@ def test_scoring_calculator():
     assert pp == 10
     
     print("✅ Scoring Calculator passed")
-    return True
 
 def test_level_manager():
     print("\n" + "="*60)
@@ -143,7 +141,7 @@ def test_level_manager():
     assert change_none is None
     
     print("✅ Level Manager passed")
-    return True
+    
 
 def run_all_tests():
     tests = [

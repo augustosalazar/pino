@@ -29,6 +29,7 @@ from gamification_v2_init import initialize_v2_data
 # ==================== GAMIFICATION V2 INTEGRATION ====================
 import os
 from datetime import datetime
+from datetime_utils import now_utc_iso
 
 # V2 Core Components
 from v2.config_manager import get_config_manager
@@ -45,10 +46,9 @@ from v2.models import (
     Operacion, TipoRespuesta
 )
 
-# Feature Flag
-#USE_GAMIFICATION_V2 = os.getenv("USE_GAMIFICATION_V2", "false").lower() == "true"
-USE_GAMIFICATION_V2 = True  # Always enabled for now
-print(f"[SYSTEM] Gamification V2 is {'ENABLED' if USE_GAMIFICATION_V2 else 'DISABLED'}")
+# V2 is always enabled (legacy flow removed)
+USE_GAMIFICATION_V2 = True
+print(f"[SYSTEM] Gamification V2 is ENABLED by default")
 
 app = FastAPI(
     title="PineServer API",
@@ -65,7 +65,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register V2 test endpoints
+# Register V2 test endpoints (keep available)
 app.include_router(v2_test_router)
 
 
@@ -277,10 +277,164 @@ async def start_session(request: StartSessionRequest):
     try:
         print(f"[DEBUG] Starting session for user: {request.user_ref}")
         
-        # V2 HOOK
-        if USE_GAMIFICATION_V2:
-            from gamification_v2_bridge import handle_start_session_v2
-            return await handle_start_session_v2(request)
+        # ==================== V2 START SESSION (DEFAULT) ====================
+        from typing import List
+        from v2.models import Exercise as V2Exercise, TipoRespuesta
+
+        # Helper to pull pending items into the batch
+        def _get_pending_exercises(user_ref: str, operacion: str, limit: int = 2) -> List[V2Exercise]:
+            try:
+                pending = roble_client.read_table("pine_pending_items", {
+                    "user_ref": user_ref,
+                    "operacion": operacion,
+                    "completado": False
+                })
+                if not pending:
+                    return []
+                pending.sort(key=lambda x: x.get('fecha_ultimo_fallo', ''))
+                selection = pending[:limit]
+
+                exercises: List[V2Exercise] = []
+                for p in selection:
+                    ref = p.get("exercise_ref")
+                    if not ref:
+                        continue
+                    ex_data_list = roble_client.read_table("pine_exercises", {"_id": ref})
+                    if ex_data_list:
+                        ex_rec = ex_data_list[0]
+                        t_resp = TipoRespuesta.MULTIPLE_CHOICE if ex_rec.get("exercise_type") == 1 else TipoRespuesta.ABIERTA
+                        opciones = None
+                        if ex_rec.get("options"):
+                            if isinstance(ex_rec["options"], str):
+                                try:
+                                    opciones = json.loads(ex_rec["options"])
+                                except Exception:
+                                    pass
+                            elif isinstance(ex_rec["options"], list):
+                                opciones = ex_rec["options"]
+                        ex_obj = V2Exercise(
+                            operand_1=ex_rec["operand_1"],
+                            operand_2=ex_rec["operand_2"],
+                            operacion=operacion,
+                            respuesta_correcta=float(ex_rec["correct_answer"]),
+                            dificultad=float(ex_rec["difficulty_level"]),
+                            tipo_respuesta=t_resp,
+                            opciones=opciones,
+                            pending_ref=p.get("_id")
+                        )
+                        exercises.append(ex_obj)
+                return exercises
+            except Exception as e:
+                print(f"[V2 WARN] Error fetching pending exercises: {e}")
+                return []
+
+        # Cache for V2 session metadata (mimic bridge behavior)
+        global _V2_SESSION_METADATA_CACHE
+        try:
+            _ = _V2_SESSION_METADATA_CACHE
+        except NameError:
+            _V2_SESSION_METADATA_CACHE = {}
+
+        user_ref = request.user_ref
+        ops_records = roble_client.read_table("pine_user_operations", {"user_ref": user_ref})
+        if not ops_records:
+            initial_op = {
+                "user_ref": user_ref,
+                "operacion": "suma",
+                "nivel_dominio": 1,
+                "nivel_invisible": 1.0,
+                "pd_operacion": 0,
+                "unlocked": True,
+                "miniboss_completed": False,
+                "miniboss_attempts": 0,
+                "batches_desde_ultimo_miniboss": 0,
+                "miniboss_fallos_consecutivos": 0,
+                "total_ejercicios": 0,
+                "total_correctos": 0,
+                "updated_at": now_utc_iso()
+            }
+            roble_client.insert_records("pine_user_operations", [initial_op])
+            ops_records = [initial_op]
+
+        operations_state = [UserOperationState.from_db_record(r) for r in ops_records if r.get("unlocked")]
+        if not operations_state:
+            operations_state = [UserOperationState.from_db_record(r) for r in ops_records]
+
+        import random
+        selected_op_state = random.choice(operations_state)
+        operacion = selected_op_state.operacion
+
+        batch_type = BatchType.REGULAR
+        detector = get_miniboss_detector()
+        is_boss = detector.is_miniboss_candidate(selected_op_state)
+        if is_boss:
+            batch_type = BatchType.MINIBOSS
+
+        forced_exercises: List[V2Exercise] = []
+        if batch_type == BatchType.REGULAR:
+            forced_exercises = _get_pending_exercises(user_ref, operacion)
+
+        batch_gen = get_batch_generator()
+        v2_exercises = batch_gen.generate_batch(
+            user_ref=user_ref,
+            operacion=operacion,
+            nivel_invisible=selected_op_state.nivel_invisible,
+            batch_type=batch_type,
+            forced_exercises=forced_exercises
+        )
+
+        legacy_exercises = []
+        op_map = {
+            "suma": Operator.ADD,
+            "resta": Operator.SUBTRACT,
+            "mult": Operator.MULTIPLY,
+            "div": Operator.DIVIDE
+        }
+        from models import ExerciseType
+        for ex in v2_exercises:
+            ex_type = ExerciseType.MULTIPLE_CHOICE if ex.tipo_respuesta == TipoRespuesta.MULTIPLE_CHOICE else ExerciseType.TEXT_INPUT
+            legacy_exercises.append(Exercise(
+                exercise_type=ex_type,
+                operator=op_map.get(ex.operacion, Operator.ADD),
+                operand_1=ex.operand_1,
+                operand_2=ex.operand_2,
+                correct_answer=ex.respuesta_correcta,
+                options=ex.opciones,
+                difficulty_level=ex.dificultad
+            ))
+
+        session_data = {
+            "user_ref": user_ref,
+            "model_ref": "v2_adaptive",
+            "total_exercises": len(legacy_exercises),
+            "correct_answers": 0,
+            "avg_difficulty": sum(e.dificultad for e in v2_exercises) / len(v2_exercises),
+            "total_time_ms": 0,
+            "score_earned": 0
+        }
+        res = roble_client.insert_records("pine_exercise_sessions", [session_data])
+        if not res or not res.get("inserted"):
+            raise HTTPException(status_code=500, detail="Failed to create V2 session")
+        session_id = res["inserted"][0]["_id"]
+
+        _V2_SESSION_METADATA_CACHE[session_id] = {
+            "batch_type": batch_type,
+            "operacion": operacion,
+            "nivel_central": int(selected_op_state.nivel_invisible),
+            "nivel_invisible": selected_op_state.nivel_invisible,
+            "is_miniboss": is_boss,
+            "exercises": v2_exercises
+        }
+
+        dummy_profile = {op.value: 1.0 for op in Operator}
+        if is_boss:
+            dummy_profile['is_miniboss'] = 1.0
+
+        return StartSessionResponse(
+            session_id=session_id,
+            exercises=legacy_exercises,
+            user_profile=dummy_profile
+        )
             
         # ==================== GET UNLOCKED OPERATIONS ====================
         # Get which operations the user has unlocked via gamification
@@ -431,7 +585,7 @@ async def start_session(request: StartSessionRequest):
         # Update with started_at (done separately to avoid potential insert schema issues)
         try:
             roble_client.update_record("pine_exercise_sessions", session_id, {
-                "started_at": datetime.utcnow().isoformat()
+                "started_at": now_utc_iso()
             })
         except Exception as e:
             print(f"[WARN] Failed to set started_at: {e}")
@@ -465,10 +619,146 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
     try:
         print(f"[DEBUG] Completing session: {session_id}")
         
-        # V2 HOOK
-        if USE_GAMIFICATION_V2:
-            from gamification_v2_bridge import handle_complete_session_v2
-            return await handle_complete_session_v2(session_id, request)
+        # ==================== V2 COMPLETE SESSION (DEFAULT) ====================
+        from typing import List
+        from v2.models import Exercise as V2Exercise
+
+        sessions = roble_client.read_table("pine_exercise_sessions", {"_id": session_id})
+        if not sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
+        session = sessions[0]
+        user_ref = session.get("user_ref")
+
+        global _V2_SESSION_METADATA_CACHE
+        v2_meta = _V2_SESSION_METADATA_CACHE.get(session_id, {})
+        if not v2_meta and session.get("v2_metadata"):
+            try:
+                v2_meta = json.loads(session.get("v2_metadata"))
+            except Exception:
+                v2_meta = {}
+
+        operacion_str = v2_meta.get("operacion", "suma")
+        batch_type_str = v2_meta.get("batch_type", BatchType.REGULAR)
+        nivel_invisible_antes = v2_meta.get("nivel_invisible", 1.0)
+
+        v2_results: List[ExerciseResult] = []
+        op_map_rev = {'+': 'suma', '-': 'resta', '*': 'mult', '/': 'div'}
+        original_exercises: List[V2Exercise] = v2_meta.get("exercises", [])
+
+        for i, ex in enumerate(request.exercises):
+            op_v2 = op_map_rev.get(ex.operator.value, 'suma')
+            exercise_obj = V2Exercise(
+                operand_1=ex.operand_1,
+                operand_2=ex.operand_2,
+                operacion=op_v2,
+                respuesta_correcta=ex.correct_answer,
+                dificultad=ex.difficulty_level,
+                tipo_respuesta="multiple_choice" if ex.exercise_type.value == "multiple_choice" else "abierta",
+                opciones=ex.options
+            )
+            if i < len(original_exercises):
+                exercise_obj.pending_ref = original_exercises[i].pending_ref
+            v2_res = ExerciseResult(
+                exercise=exercise_obj,
+                respuesta_usuario=ex.user_answer if ex.user_answer is not None else 0,
+                es_correcto=ex.is_correct,
+                tiempo_segundos=ex.time_taken_ms / 1000.0
+            )
+            v2_results.append(v2_res)
+            if v2_res.es_correcto and exercise_obj.pending_ref:
+                try:
+                    roble_client.update_record("pine_pending_items", exercise_obj.pending_ref, {"completado": True})
+                except Exception as e:
+                    print(f"[V2 WARN] Failed marking pending completed: {e}")
+
+        perf_eval = get_performance_evaluator()
+        nivel_invisible_nuevo = perf_eval.evaluate_performance(v2_results, nivel_invisible_antes)
+
+        score_calc = get_scoring_calculator()
+        score_parts = score_calc.calculate_score_parts(v2_results)
+        score_earned = score_parts["total"]
+
+        miniboss_aprobado = None
+        if batch_type_str == BatchType.MINIBOSS:
+            mb_eval = get_miniboss_evaluator()
+            miniboss_aprobado = mb_eval.evaluate_miniboss(v2_results)
+
+        try:
+            exercise_records_legacy = []
+            for ex in request.exercises:
+                rec = {
+                    "session_ref": session_id,
+                    "user_ref": user_ref,
+                    "exercise_type": ex.exercise_type.value,
+                    "operator": ex.operator.value,
+                    "operand_1": ex.operand_1,
+                    "operand_2": ex.operand_2,
+                    "correct_answer": ex.correct_answer,
+                    "user_answer": ex.user_answer,
+                    "options": json.dumps(ex.options) if ex.options else None,
+                    "difficulty_level": ex.difficulty_level,
+                    "is_correct": ex.is_correct,
+                    "time_taken_ms": ex.time_taken_ms
+                }
+                exercise_records_legacy.append(rec)
+            res_legacy = roble_client.insert_records("pine_exercises", exercise_records_legacy)
+            if res_legacy and "inserted" in res_legacy:
+                inserted_ids = [doc["_id"] for doc in res_legacy["inserted"]]
+                for i, ex_res in enumerate(v2_results):
+                    if i < len(inserted_ids):
+                        ex_res.legacy_ref = inserted_ids[i]
+        except Exception as e:
+            print(f"[V2 WARN] Failed to save legacy exercises (non-critical): {e}")
+
+        recorder = get_batch_recorder()
+        gamif_recs = roble_client.read_table("pine_user_gamification", {"user_ref": user_ref})
+        current_gamif = UserGamificationState.from_db_record(gamif_recs[0]) if gamif_recs else UserGamificationState(user_ref)
+        batch_result = BatchResult(
+            user_ref=user_ref,
+            operacion=operacion_str,
+            batch_type=batch_type_str,
+            ejercicios=v2_results,
+            nivel_central=v2_meta.get("nivel_central", 1),
+            nivel_invisible_antes=nivel_invisible_antes,
+            nivel_invisible_despues=nivel_invisible_nuevo,
+            score_ganado=score_earned,
+            pp_ganados=score_calc.calculate_pp(v2_results),
+            pd_ganados=score_calc.calculate_pd(v2_results),
+            xp_ganada=score_calc.calculate_xp(v2_results),
+            duracion_segundos=int(sum(r.tiempo_segundos for r in v2_results)),
+            miniboss_aprobado=miniboss_aprobado
+        )
+        recorder.record_batch(batch_result, current_gamif)
+
+        roble_client.update_record("pine_exercise_sessions", session_id, {
+            "correct_answers": sum(1 for r in v2_results if r.es_correcto),
+            "score_earned": score_earned,
+            "completed_at": now_utc_iso()
+        })
+
+        diff_adjustments = {
+            operacion_str: {
+                "old": nivel_invisible_antes,
+                "new": nivel_invisible_nuevo
+            }
+        }
+        gamif_legacy = {
+            "puntos_ganados": score_earned,
+            "recompensas": {
+                "pp_ganados": batch_result.pp_ganados,
+                "pd": {"total_pd_global": batch_result.pd_ganados},
+                "xp_ganada": batch_result.xp_ganada
+            },
+            "level_up": miniboss_aprobado is True
+        }
+        return CompleteSessionResponse(
+            session_id=session_id,
+            total_exercises=len(v2_results),
+            correct_answers=batch_result.ejercicios_correctos,
+            score_earned=score_earned,
+            difficulty_adjustments=diff_adjustments,
+            gamification=gamif_legacy
+        )
         
         # Get session
         sessions = roble_client.read_table("pine_exercise_sessions", {"_id": session_id})
@@ -519,7 +809,7 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
                 "correct_answers": correct_answers,
                 "total_time_ms": total_time,
                 "score_earned": score_earned,
-                "completed_at": datetime.utcnow().isoformat()
+                "completed_at": now_utc_iso()
             })
             print(f"[DEBUG] Updated session record")
         except Exception as e:
@@ -927,7 +1217,7 @@ async def start_miniboss(user_ref: str, operacion: str):
         # Update with started_at
         try:
             roble_client.update_record("pine_exercise_sessions", session_id, {
-                "started_at": datetime.utcnow().isoformat()
+                "started_at": now_utc_iso()
             })
         except Exception as e:
             print(f"[WARN] Failed to set started_at: {e}")

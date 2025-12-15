@@ -50,7 +50,7 @@ def test_miniboss_detector():
     assert not is_cand_cd
     
     print("✅ Miniboss Detector passed")
-    return True
+    
 
 def test_miniboss_evaluator():
     print("\n" + "="*60)
@@ -80,7 +80,7 @@ def test_miniboss_evaluator():
     assert not passed_7
     
     print("✅ Miniboss Evaluator passed")
-    return True
+    
 
 def run_all_tests():
     tests = [
