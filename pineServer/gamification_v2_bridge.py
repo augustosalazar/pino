@@ -16,7 +16,6 @@ from models import (
     Exercise
 )
 
-from datetime_utils import now_colombia, now_colombia_iso
 from roble_client import roble_client
 
 # V2 Components
@@ -179,14 +178,6 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
             forced_exercises=forced_exercises
         )
         
-        print("\n" + "="*50)
-        print(f"BATCH GENERATED | Type: {batch_type} | Op: {operacion} | Level: {selected_op_state.nivel_invisible:.2f}")
-        print("-"*50)
-        for i, ex in enumerate(v2_exercises):
-            status = " [REVIEW]" if ex.pending_ref else " [NEW]   "
-            print(f"{i+1:02d}. {status} {ex.operand_1} {ex.operacion} {ex.operand_2} = {ex.respuesta_correcta} (Diff: {ex.dificultad:.2f})")
-        print("="*50 + "\n")
-        
         legacy_exercises: List[Exercise] = []
         
         # Mapeo de operador string a Enum legacy
@@ -216,7 +207,6 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
         # IMPORTANTE: No guardamos metadata V2 en DB para evitar errores de schema
         session_data = {
             "user_ref": user_ref,
-            "started_at":  datetime.utcnow().isoformat(),
             "model_ref": "v2_adaptive", # Marcador
             "total_exercises": len(legacy_exercises),
             "correct_answers": 0,
@@ -274,12 +264,8 @@ async def handle_start_session_v2(request: StartSessionRequest) -> StartSessionR
 async def handle_complete_session_v2(session_id: str, request: CompleteSessionRequest) -> CompleteSessionResponse:
     """Maneja la compleción de sesión usando lógica V2"""
     try:
-        print(f"[V2] Completing session {session_id} {request}" )
+        print(f"[V2] Completing session {session_id}")
         
-
-        total_correct = sum(1 for ex in request.exercises if ex.is_correct)
-        print(f"[V2] Total correct answers: {total_correct} / {len(request.exercises)}")
-         
         # 1. Recuperar sesión para obtener metadatos V2
         sessions = roble_client.read_table("pine_exercise_sessions", {"_id": session_id})
         if not sessions:
@@ -423,8 +409,7 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
             pd_ganados=score_calc.calculate_pd(v2_results),
             xp_ganada=score_calc.calculate_xp(v2_results),
             duracion_segundos=int(sum(r.tiempo_segundos for r in v2_results)),
-            miniboss_aprobado=miniboss_aprobado,
-            session_ref=session_id
+            miniboss_aprobado=miniboss_aprobado
         )
         
         success = recorder.record_batch(batch_result, current_gamif)
@@ -433,11 +418,8 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
         roble_client.update_record("pine_exercise_sessions", session_id, {
             "correct_answers": sum(1 for r in v2_results if r.es_correcto),
             "score_earned": score_earned,
-            "completed_at": datetime.utcnow().isoformat(),
-            "total_time_ms": int(sum(r.tiempo_segundos for r in v2_results) * 1000)
+            "completed_at": datetime.utcnow().isoformat()
         })
-        
-        print(f"[V2] Session {session_id} completed successfully at {now_colombia_iso()}")
         
         # 6. Responder
         # Ajustes de dificultad dummy para frontend legacy
@@ -458,21 +440,6 @@ async def handle_complete_session_v2(session_id: str, request: CompleteSessionRe
             },
             "level_up": miniboss_aprobado is True
         }
-        
-        print("\n" + "="*50)
-        print("BATCH RESULTS RECEIVED")
-        print(f"Meta: {batch_type_str} | Op: {operacion_str} | Invisible Before: {nivel_invisible_antes:.2f} -> Invisible After: {nivel_invisible_nuevo:.2f} Visible : {v2_meta.get('nivel_central', 1)}")
-        print("-"*50)
-        for i, res in enumerate(v2_results):
-            mark = "✓" if res.es_correcto else "✗"
-            status = " [CLEARED]" if res.es_correcto and res.exercise.pending_ref else ""
-            print(f"{i+1:02d}. {mark} {res.exercise.operand_1} {res.exercise.operacion} {res.exercise.operand_2} | User: {res.respuesta_usuario} | Time: {res.tiempo_segundos:.1f}s | Diff: {res.exercise.dificultad:.2f}{status}")
-        
-        print("-"*50)
-        print(f"SUMMARY: Score: {score_earned} | XP: {batch_result.xp_ganada} | PP: {batch_result.pp_ganados}")
-        if miniboss_aprobado is not None:
-            print(f"MINIBOSS: {'PASSED' if miniboss_aprobado else 'FAILED'}")
-        print("="*50 + "\n")
         
         return CompleteSessionResponse(
             session_id=session_id,

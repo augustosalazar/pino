@@ -288,7 +288,11 @@ class BatchRecorder:
         
         if not failed_exercises:
             return
-            
+
+        if len(failed_exercises) > 8:
+            print(f"[BatchRecorder] Too many failed exercises ({len(failed_exercises)}), skipping save to pending items.")
+            return
+
         pending_records = []
         timestamp = datetime.utcnow().isoformat()
         
@@ -306,6 +310,7 @@ class BatchRecorder:
                 "session_ref": result.session_ref,
             }
             pending_records.append(record)
+
             
         if pending_records:
             try:
