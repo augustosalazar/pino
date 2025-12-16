@@ -51,6 +51,10 @@ class BatchRecorder:
             # 3.5. Actualizar pine_weekly_leaderboard
             self._update_weekly_leaderboard(result)
             
+            # 3.6. Actualizar pine_leaderboard_endless_mensual si es modo endless
+            if result.batch_type == BatchType.ENDLESS:
+                self._update_endless_monthly_leaderboard(result)
+            
             # 4. Registrar intento de miniboss si aplica
             if result.batch_type == BatchType.MINIBOSS:
                 self._log_miniboss_attempt(result)
@@ -460,6 +464,153 @@ class BatchRecorder:
             
         except Exception as e:
             print(f"[BatchRecorder] Warning: Failed to recalculate weekly rankings: {e}")
+            # No es crítico, no fallar el batch
+
+    def _get_month_dates(self, reference_date: date = None) -> tuple:
+        """
+        Calcula fecha_inicio y fecha_fin del mes actual.
+        
+        Returns:
+            (fecha_inicio, fecha_fin) como date objetos
+        """
+        if reference_date is None:
+            reference_date = now_colombia().date()
+        
+        # Primer día del mes
+        fecha_inicio = reference_date.replace(day=1)
+        
+        # Último día del mes
+        if reference_date.month == 12:
+            fecha_fin = reference_date.replace(year=reference_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            fecha_fin = reference_date.replace(month=reference_date.month + 1, day=1) - timedelta(days=1)
+        
+        return fecha_inicio, fecha_fin
+
+    def _generate_mes_id(self, fecha_inicio: date) -> str:
+        """
+        Genera un ID único para el mes basado en la fecha de inicio.
+        Formato: YYYY-MM (ej: 2025-01)
+        """
+        return fecha_inicio.strftime("%Y-%m")
+
+    def _update_endless_monthly_leaderboard(self, result: BatchResult):
+        """
+        Actualiza o crea registro en pine_leaderboard_endless_mensual.
+        
+        Acumula el mejor streak mensual para modo endless (sin afectar progresión).
+        Solo aplica para batches de tipo ENDLESS.
+        """
+        try:
+            # Validar que tenga endless_streak
+            if result.endless_streak is None:
+                print(f"[BatchRecorder] Warning: Endless batch without endless_streak for {result.user_ref}")
+                return
+            
+            fecha_inicio, fecha_fin = self._get_month_dates()
+            mes_id = self._generate_mes_id(fecha_inicio)
+            
+            # Buscar si ya existe registro para este mes
+            monthly_records = roble_client.read_table(
+                "pine_leaderboard_endless_mensual",
+                {
+                    "user_ref": result.user_ref,
+                    "mes_id": mes_id
+                }
+            )
+            
+            if monthly_records:
+                # Actualizar existente
+                record = monthly_records[0]
+                record_id = record.get("_id")
+                
+                # Solo actualizar si el nuevo streak es mejor
+                current_best = record.get("mejor_streak", 0)
+                new_streak = result.endless_streak
+                
+                updates = {
+                    "total_intentos": record.get("total_intentos", 0) + 1,
+                    "updated_at": now_utc_iso(),
+                }
+                
+                # Actualizar mejor streak si aplica
+                if new_streak > current_best:
+                    updates["mejor_streak"] = new_streak
+                
+                roble_client.update_record("pine_leaderboard_endless_mensual", record_id, updates)
+                print(f"[BatchRecorder] Updated endless monthly leaderboard for {result.user_ref}: streak={new_streak}")
+                
+            else:
+                # Insertar nuevo
+                new_record = {
+                    "user_ref": result.user_ref,
+                    "mes_id": mes_id,
+                    "mejor_streak": result.endless_streak,
+                    "total_intentos": 1,
+                    "ranking": 0,  # Se calculará al final del mes
+                    "fecha_inicio": fecha_inicio.isoformat(),
+                    "fecha_fin": fecha_fin.isoformat(),
+                    "created_at": now_utc_iso(),
+                    "updated_at": now_utc_iso(),
+                }
+                
+                roble_client.insert_records("pine_leaderboard_endless_mensual", [new_record])
+                print(f"[BatchRecorder] Created new endless monthly leaderboard entry for {result.user_ref}: streak={result.endless_streak}")
+                
+            # Recalcular rankings para el mes
+            self._recalculate_endless_monthly_rankings(fecha_inicio, fecha_fin)
+            
+        except Exception as e:
+            print(f"[BatchRecorder] Warning: Failed to update endless monthly leaderboard: {e}")
+            # No fallar el batch completo si el leaderboard falla
+
+    def _recalculate_endless_monthly_rankings(self, fecha_inicio: date, fecha_fin: date):
+        """
+        Recalcula los rankings (posiciones) para todos los usuarios en el mes.
+        Ordena por mejor_streak descendente (primario) y total_intentos (secundario).
+        """
+        try:
+            mes_id = self._generate_mes_id(fecha_inicio)
+            
+            # Obtener todos los registros del mes
+            all_monthly = roble_client.read_table(
+                "pine_leaderboard_endless_mensual",
+                {}  # Sin filtro, obtenemos todos
+            )
+            
+            # Filtrar por mes_id
+            mes_records = [
+                r for r in all_monthly
+                if r.get("mes_id") == mes_id
+            ]
+            
+            if not mes_records:
+                return
+            
+            # Ordenar: primero mejor_streak (desc), luego total_intentos (desc)
+            sorted_records = sorted(
+                mes_records,
+                key=lambda x: (
+                    x.get("mejor_streak", 0),
+                    x.get("total_intentos", 0)
+                ),
+                reverse=True
+            )
+            
+            # Asignar rankings
+            for rank, record in enumerate(sorted_records, start=1):
+                record_id = record.get("_id")
+                if record_id and record.get("ranking") != rank:
+                    roble_client.update_record(
+                        "pine_leaderboard_endless_mensual",
+                        record_id,
+                        {"ranking": rank, "updated_at": now_utc_iso()}
+                    )
+            
+            print(f"[BatchRecorder] Recalculated endless rankings for month {mes_id}: {len(sorted_records)} users")
+            
+        except Exception as e:
+            print(f"[BatchRecorder] Warning: Failed to recalculate endless monthly rankings: {e}")
             # No es crítico, no fallar el batch
 
 # Singleton

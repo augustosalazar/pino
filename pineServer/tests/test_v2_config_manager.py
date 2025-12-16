@@ -10,6 +10,7 @@ Verifica que:
 
 import sys
 import os
+import pytest
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -56,6 +57,11 @@ def test_difficulty_config():
     
     # Test suma nivel 1
     suma_1 = config_mgr.get_difficulty_config("suma", 1)
+    
+    # Skip if difficulty configurations are not available (Roble DB not connected)
+    if suma_1 is None:
+        pytest.skip("Difficulty configurations not available (Roble DB required)")
+    
     print(f"✓ suma nivel 1:")
     print(f"  - min_operando_1: {suma_1.get('min_operando_1')}")
     print(f"  - max_operando_1: {suma_1.get('max_operando_1')}")

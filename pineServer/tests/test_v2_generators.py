@@ -5,6 +5,7 @@ Tests para Generadores V2 (Exercise y Batch)
 import sys
 import os
 import math
+import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -26,6 +27,10 @@ def test_exercise_generator_interpolation():
     print(">>> Probando Nivel 1.0 (Exacto)")
     ex1 = gen.generate_exercise("suma", 1.0)
     conf1 = config_mgr.get_difficulty_config("suma", 1)
+    
+    # Skip if difficulty configurations are not available (Roble DB not connected)
+    if conf1 is None:
+        pytest.skip("Difficulty configurations not available (Roble DB required)")
     
     print(f"Problem: {ex1.problem} = {ex1.respuesta_correcta}")
     print(f"Range: [{conf1['min_operando_1']}-{conf1['max_operando_1']}]")
