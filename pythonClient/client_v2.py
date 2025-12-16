@@ -61,12 +61,19 @@ def ensure_user(user_ref: str):
         print(f"{Colors.FAIL}Error creating/fetching user: {e}{Colors.ENDC}")
         return None
 
-def start_session(user_ref: str, num_exercises: int = 10):
-    """Inicia una nueva sesión de práctica"""
+def start_session(user_ref: str, num_exercises: int = 10, batch_type: str = "regular"):
+    """Inicia una nueva sesión de práctica
+    
+    Args:
+        user_ref: Referencia del usuario
+        num_exercises: Número de ejercicios en la sesión
+        batch_type: Tipo de sesión ('regular', 'miniboss', o 'endless')
+    """
     url = f"{BASE_URL}/api/sessions/start"
     payload = {
         "user_ref": user_ref,
-        "num_exercises": num_exercises
+        "num_exercises": num_exercises,
+        "batch_type": batch_type
     }
     
     try:
@@ -174,9 +181,33 @@ def main():
         print(f" - Racha: {gamif.get('racha_dias', 0)} días")
         print(f" - PP Disponibles: {gamif.get('pp_total', 0)}")
     
-    # 2. Start Session
-    input(f"\nPresiona ENTER para solicitar un batch de ejercicios...")
-    session_data = start_session(user_ref)
+    # 2. Select Game Mode
+    print(f"\n{Colors.BOLD}Selecciona modo de juego:{Colors.ENDC}")
+    print("1. Modo Regular (Práctica normal)")
+    print("2. Modo Miniboss (Desafío especial)")
+    print("3. Modo Endless (¡Practica hasta fallar!)")
+    
+    mode_choice = input(f"\n{Colors.BLUE}Selección (1-3, default=1): {Colors.ENDC}").strip()
+    
+    batch_type_map = {
+        "1": "regular",
+        "2": "miniboss",
+        "3": "endless"
+    }
+    batch_type = batch_type_map.get(mode_choice, "regular")
+    mode_names = {
+        "regular": "Regular",
+        "miniboss": "Miniboss",
+        "endless": "Endless"
+    }
+    
+    # 3. Start Session
+    input(f"\n{Colors.BOLD}Modo: {mode_names[batch_type]}{Colors.ENDC}")
+    input(f"Presiona ENTER para solicitar un batch de ejercicios...")
+    
+    # For endless mode, we generate batches dynamically
+    num_exercises = 5 if batch_type == "endless" else 10
+    session_data = start_session(user_ref, num_exercises, batch_type)
     
     if not session_data:
         return
@@ -184,25 +215,49 @@ def main():
     session_id = session_data['session_id']
     exercises = session_data['exercises']
     
-    # Detectar si es V2
+    # Detectar modo
     profile = session_data.get('user_profile', {})
     is_miniboss = profile.get('is_miniboss')
     
     print(f"\n{Colors.GREEN}¡Sesión Iniciada!{Colors.ENDC}")
     print(f"ID: {session_id}")
     print(f"Ejercicios: {len(exercises)}")
-    if is_miniboss:
+    
+    if batch_type == "endless":
+        print(f"{Colors.WARNING}🎯 MODO ENDLESS ACTIVADO 🎯{Colors.ENDC}")
+        print("¡Responde correctamente para continuar!")
+        print("Se generarán ejercicios hasta que cometas un error...")
+    elif is_miniboss:
         print(f"{Colors.WARNING}⚠️  MODO MINIBOSS ACTIVADO ⚠️{Colors.ENDC}")
         print("¡Este batch es crucial para subir de nivel!")
         
-    # 3. Interactive Loop
+    # 4. Interactive Loop
     resolved_exercises = []
+    endless_streak = 0
     
     for i, ex in enumerate(exercises):
         resolved = present_exercise(ex, i+1, len(exercises))
         resolved_exercises.append(resolved)
         
-    # 4. Complete Session
+        # In endless mode, track streak and potentially continue
+        if batch_type == "endless":
+            if resolved.get('is_correct'):
+                endless_streak += 1
+                print(f"{Colors.GREEN}¡Racha: {endless_streak}! {Colors.ENDC}")
+                # Request next exercise if there's more to do
+                if i == len(exercises) - 1:
+                    # Ask if user wants to continue
+                    continue_choice = input(f"\n{Colors.BLUE}¿Deseas continuar? (s/n): {Colors.ENDC}").strip().lower()
+                    if continue_choice == 's':
+                        print("Obteniendo siguiente ejercicio...")
+                        # In a real implementation, you'd request the next exercise
+                        # For now, we'll just complete the session
+                        pass
+            else:
+                print(f"{Colors.FAIL}¡Racha rota! Final: {endless_streak} ejercicios correctos.{Colors.ENDC}")
+                break
+        
+    # 5. Complete Session
     print(f"\nEnviando resultados...")
     result_data = complete_session(session_id, resolved_exercises)
     
@@ -210,7 +265,7 @@ def main():
         print(f"{Colors.FAIL}El servidor no valoro la sesión.{Colors.ENDC}")
         return
         
-    # 5. Show Results
+    # 6. Show Results
     print_header("RESUMEN DE SESIÓN")
     
     score = result_data.get('score_earned', 0)
@@ -219,6 +274,15 @@ def main():
     
     print(f"Aciertos: {correct}/{total}")
     print(f"Puntuación Base: {Colors.BOLD}{score}{Colors.ENDC}")
+    
+    # Show endless mode specific info
+    if batch_type == "endless":
+        endless_info = result_data.get('endless_info', {})
+        streak = endless_info.get('streak', 0)
+        best_streak = endless_info.get('best_streak', 0)
+        print(f"\n{Colors.CYAN}📊 Estadísticas Endless:{Colors.ENDC}")
+        print(f" - Racha Actual: {streak}")
+        print(f" - Mejor Racha (este mes): {best_streak}")
     
     # Mostrar Gamificación V2 info
     if 'gamification' in result_data:

@@ -5,9 +5,6 @@ Manages component lifecycle and injection
 
 from typing import Optional
 from interfaces import IProblemGenerator, IBatchGenerator, IProfileEvaluator
-from generators import StandardBatchGenerator  # Batch generator unchanged
-from generators.gamification_problem_generator import GamificationProblemGenerator  # NEW
-from evaluators import StandardProfileEvaluator
 
 
 class ServiceContainer:
@@ -56,26 +53,14 @@ def create_default_container() -> ServiceContainer:
     """
     Create container with gamification-aware implementations
     
-    Uses:
-    - GamificationProblemGenerator: Respects 5-level mastery system (Nivel 1-5)
-    - StandardBatchGenerator: Respects operation unlocks
-    - StandardProfileEvaluator: Adaptive difficulty tracking
+    Note: V2 gamification is now inlined in main.py and doesn't use this container.
+    This function is kept for backward compatibility but returns an empty container.
     
     Returns:
-        ServiceContainer configured with gamification implementations
+        ServiceContainer (deprecated, for backward compatibility only)
     """
     container = ServiceContainer()
-    
-    # Create gamification-aware problem generator
-    problem_gen = GamificationProblemGenerator()
-    batch_gen = StandardBatchGenerator(problem_gen)
-    profile_eval = StandardProfileEvaluator()
-    
-    # Inject into container
-    container.set_problem_generator(problem_gen)
-    container.set_batch_generator(batch_gen)
-    container.set_profile_evaluator(profile_eval)
-    
+    # V1 components no longer used - V2 gamification is inlined in main.py
     return container
 
 

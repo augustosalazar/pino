@@ -20,10 +20,10 @@ def initialize_system_config():
         existing = roble_client.read_table("pine_configuracion_sistema", {})
         
         if existing and len(existing) > 0:
-            print(f"[INIT] ✅ pine_configuracion_sistema already has {len(existing)} records")
+            print(f"[INIT] [OK] pine_configuracion_sistema already has {len(existing)} records")
             return True
         
-        print("[INIT] 📝 Populating pine_configuracion_sistema with default values...")
+        print("[INIT] [*] Populating pine_configuracion_sistema with default values...")
         
         # Default system configurations
         # NOTE: config_value must be JSON string for JSONB field
@@ -171,13 +171,13 @@ def initialize_system_config():
         
         if result and result.get("inserted"):
             count = len(result["inserted"])
-            print(f"[INIT] ✅ Inserted {count} system configurations")
+            print(f"[INIT] [OK] Inserted {count} system configurations")
             return True
         else:
             # Check if it was skipped
             skipped = result.get("skipped", [])
             if skipped:
-                print(f"[INIT] ⚠️  Warning: {len(skipped)} configs were skipped")
+                print(f"[INIT] [!] Warning: {len(skipped)} configs were skipped")
                 for skip in skipped[:3]:  # Show first 3
                     print(f"       Reason: {skip.get('reason')}")
             return False
@@ -200,10 +200,10 @@ def initialize_difficulty_config():
         existing = roble_client.read_table("pine_configuracion_dificultad", {})
         
         if existing and len(existing) > 0:
-            print(f"[INIT] ✅ pine_configuracion_dificultad already has {len(existing)} records")
+            print(f"[INIT] [OK] pine_configuracion_dificultad already has {len(existing)} records")
             return True
         
-        print("[INIT] 📝 Populating pine_configuracion_dificultad with default values...")
+        print("[INIT] [*] Populating pine_configuracion_dificultad with default values...")
         
         # Default difficulty configurations (4 operations × 5 levels = 20 configs)
         configs = [
@@ -421,10 +421,10 @@ def initialize_difficulty_config():
         
         if result and result.get("inserted"):
             count = len(result["inserted"])
-            print(f"[INIT] ✅ Inserted {count} difficulty configurations")
+            print(f"[INIT] [OK] Inserted {count} difficulty configurations")
             return True
         else:
-            print("[INIT] ⚠️  Warning: Could not insert difficulty configurations")
+            print("[INIT] [!] Warning: Could not insert difficulty configurations")
             return False
             
     except Exception as e:
@@ -447,10 +447,10 @@ def initialize_v2_data():
     print("=" * 70)
     
     if system_ok and difficulty_ok:
-        print("[INIT] ✅ All V2 configurations initialized successfully!")
+        print("[INIT] [OK] All V2 configurations initialized successfully!")
         print(now_colombia_iso())
     else:
-        print("[INIT] ⚠️  Some configurations could not be initialized")
+        print("[INIT] [!] Some configurations could not be initialized")
         print("[INIT] ℹ️  Server will continue, but V2 features may not work properly")
     
     print("=" * 70 + "\n")
