@@ -16,7 +16,7 @@ from models import (
     UserProfile, UserStats, Operator, EnsureUserRequest,
     Institution, UpdateProfileRequest, InstitutionStatsRequest,
     UserAnalyticsResponse, CohortAnalyticsResponse, ModelPerformanceResponse,
-    DifficultyChange, OperatorAnalytics, CohortStats
+    DifficultyChange, OperatorAnalytics, CohortStats, Exercise, ExerciseType
 )
 from roble_client import roble_client
 from container import get_container
@@ -390,7 +390,6 @@ async def start_session(request: StartSessionRequest):
             "mult": Operator.MULTIPLY,
             "div": Operator.DIVIDE
         }
-        from models import ExerciseType
         for ex in v2_exercises:
             ex_type = ExerciseType.MULTIPLE_CHOICE if ex.tipo_respuesta == TipoRespuesta.MULTIPLE_CHOICE else ExerciseType.TEXT_INPUT
             legacy_exercises.append(Exercise(
