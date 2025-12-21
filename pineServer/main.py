@@ -31,16 +31,16 @@ import os
 from datetime import datetime
 from datetime_utils import now_utc_iso
 
-# V2 Core Components
-from v2.config_manager import get_config_manager
-from v2.batch_generator import get_batch_generator
-from v2.miniboss_detector import get_miniboss_detector
-from v2.miniboss_evaluator import get_miniboss_evaluator
-from v2.performance_evaluator import get_performance_evaluator
-from v2.scoring_calculator import get_scoring_calculator
-from v2.dominio_level_manager import get_dominio_level_manager
-from v2.batch_recorder import get_batch_recorder
-from v2.models import (
+# Core Components (flattened structure)
+from config_manager import get_config_manager
+from batch_generator import get_batch_generator
+from miniboss_detector import get_miniboss_detector
+from miniboss_evaluator import get_miniboss_evaluator
+from performance_evaluator import get_performance_evaluator
+from scoring_calculator import get_scoring_calculator
+from dominio_level_manager import get_dominio_level_manager
+from batch_recorder import get_batch_recorder
+from gamification_models import (
     BatchType, UserOperationState, BatchResult, 
     ExerciseResult, UserGamificationState, Exercise as V2Exercise,
     Operacion, TipoRespuesta
@@ -279,7 +279,7 @@ async def start_session(request: StartSessionRequest):
         
         # ==================== V2 START SESSION (DEFAULT) ====================
         from typing import List
-        from v2.models import Exercise as V2Exercise, TipoRespuesta
+        from gamification_models import Exercise as V2Exercise, TipoRespuesta
 
         # Helper to pull pending items into the batch
         def _get_pending_exercises(user_ref: str, operacion: str, limit: int = 2) -> List[V2Exercise]:
@@ -631,7 +631,7 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
         
         # ==================== V2 COMPLETE SESSION (DEFAULT) ====================
         from typing import List
-        from v2.models import Exercise as V2Exercise
+        from gamification_models import Exercise as V2Exercise
 
         sessions = roble_client.read_table("pine_exercise_sessions", {"_id": session_id})
         if not sessions:
