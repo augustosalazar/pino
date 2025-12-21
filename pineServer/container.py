@@ -1,82 +1,165 @@
 """
 Dependency Injection Container
-Manages component lifecycle and injection
+
+Central registry for all injectable components.
+Supports registration, resolution, and lazy initialization.
 """
 
-from typing import Optional
-from interfaces import IProblemGenerator, IBatchGenerator, IProfileEvaluator
+from typing import Optional, Type, TypeVar, Callable, Dict, Any
+
+T = TypeVar('T')
 
 
-class ServiceContainer:
-    """Container for managing dependencies"""
+class Container:
+    """
+    DI container for the gamification system.
+    
+    Usage:
+        container = get_container()
+        generator = container.exercise_generator
+        
+    Custom implementations:
+        container.register_instance(IExerciseGenerator, MyCustomGenerator())
+    """
     
     def __init__(self):
-        self._problem_generator: Optional[IProblemGenerator] = None
-        self._batch_generator: Optional[IBatchGenerator] = None
-        self._profile_evaluator: Optional[IProfileEvaluator] = None
+        self._instances: Dict[type, Any] = {}
+        self._factories: Dict[type, Callable[[], Any]] = {}
+        
+    def register_instance(self, interface: Type[T], instance: T) -> 'Container':
+        """Register a specific instance for an interface."""
+        self._instances[interface] = instance
+        return self
     
-    def set_problem_generator(self, generator: IProblemGenerator):
-        """Inject problem generator implementation"""
-        self._problem_generator = generator
+    def register_factory(self, interface: Type[T], factory: Callable[[], T]) -> 'Container':
+        """Register a factory function for lazy instantiation."""
+        self._factories[interface] = factory
+        return self
     
-    def set_batch_generator(self, generator: IBatchGenerator):
-        """Inject batch generator implementation"""
-        self._batch_generator = generator
+    def resolve(self, interface: Type[T]) -> T:
+        """Resolve an implementation for the given interface."""
+        if interface in self._instances:
+            return self._instances[interface]
+        
+        if interface in self._factories:
+            instance = self._factories[interface]()
+            self._instances[interface] = instance
+            return instance
+        
+        raise RuntimeError(f"No implementation registered for {interface.__name__}")
     
-    def set_profile_evaluator(self, evaluator: IProfileEvaluator):
-        """Inject profile evaluator implementation"""
-        self._profile_evaluator = evaluator
+    def has(self, interface: Type[T]) -> bool:
+        """Check if an interface has a registered implementation."""
+        return interface in self._instances or interface in self._factories
+    
+    def clear(self):
+        """Clear all registrations."""
+        self._instances.clear()
+        self._factories.clear()
+    
+    # Convenience properties
+    @property
+    def config_manager(self):
+        from interfaces import IConfigManager
+        return self.resolve(IConfigManager)
     
     @property
-    def problem_generator(self) -> IProblemGenerator:
-        """Get problem generator instance"""
-        if self._problem_generator is None:
-            raise RuntimeError("Problem generator not configured")
-        return self._problem_generator
+    def exercise_generator(self):
+        from interfaces import IExerciseGenerator
+        return self.resolve(IExerciseGenerator)
     
     @property
-    def batch_generator(self) -> IBatchGenerator:
-        """Get batch generator instance"""
-        if self._batch_generator is None:
-            raise RuntimeError("Batch generator not configured")
-        return self._batch_generator
+    def batch_generator(self):
+        from interfaces import IBatchGenerator
+        return self.resolve(IBatchGenerator)
     
     @property
-    def profile_evaluator(self) -> IProfileEvaluator:
-        """Get profile evaluator instance"""
-        if self._profile_evaluator is None:
-            raise RuntimeError("Profile evaluator not configured")
-        return self._profile_evaluator
+    def performance_evaluator(self):
+        from interfaces import IPerformanceEvaluator
+        return self.resolve(IPerformanceEvaluator)
+    
+    @property
+    def scoring_calculator(self):
+        from interfaces import IScoringCalculator
+        return self.resolve(IScoringCalculator)
+    
+    @property
+    def miniboss_detector(self):
+        from interfaces import IMinibossDetector
+        return self.resolve(IMinibossDetector)
+    
+    @property
+    def miniboss_evaluator(self):
+        from interfaces import IMinibossEvaluator
+        return self.resolve(IMinibossEvaluator)
+    
+    @property
+    def batch_recorder(self):
+        from interfaces import IBatchRecorder
+        return self.resolve(IBatchRecorder)
+    
+    @property
+    def dominio_level_manager(self):
+        from interfaces import IDominioLevelManager
+        return self.resolve(IDominioLevelManager)
 
 
-def create_default_container() -> ServiceContainer:
+def create_default_container() -> Container:
     """
-    Create container with gamification-aware implementations
-    
-    Note: V2 gamification is now inlined in main.py and doesn't use this container.
-    This function is kept for backward compatibility but returns an empty container.
-    
-    Returns:
-        ServiceContainer (deprecated, for backward compatibility only)
+    Create container with all default implementations.
     """
-    container = ServiceContainer()
-    # V1 components no longer used - V2 gamification is inlined in main.py
+    from interfaces import (
+        IConfigManager, IDominioLevelManager, IExerciseGenerator,
+        IBatchGenerator, IPerformanceEvaluator, IScoringCalculator,
+        IMinibossDetector, IMinibossEvaluator, IBatchRecorder
+    )
+    
+    container = Container()
+    
+    # Import implementations - they now implement the interfaces directly
+    from config_manager import ConfigManager
+    from dominio_level_manager import DominioLevelManager
+    from exercise_generator import ExerciseGenerator
+    from batch_generator import BatchGenerator
+    from performance_evaluator import PerformanceEvaluator
+    from scoring_calculator import ScoringCalculator
+    from miniboss_detector import MinibossDetector
+    from miniboss_evaluator import MinibossEvaluator
+    from batch_recorder import BatchRecorder
+    
+    # Register all with factories for lazy init
+    container.register_factory(IConfigManager, ConfigManager)
+    container.register_factory(IDominioLevelManager, lambda: DominioLevelManager(container))
+    container.register_factory(IExerciseGenerator, lambda: ExerciseGenerator(container))
+    container.register_factory(IBatchGenerator, lambda: BatchGenerator(container))
+    container.register_factory(IPerformanceEvaluator, PerformanceEvaluator)
+    container.register_factory(IScoringCalculator, lambda: ScoringCalculator(container))
+    container.register_factory(IMinibossDetector, lambda: MinibossDetector(container))
+    container.register_factory(IMinibossEvaluator, lambda: MinibossEvaluator(container))
+    container.register_factory(IBatchRecorder, lambda: BatchRecorder(container))
+    
     return container
 
 
 # Global container instance
-_container: Optional[ServiceContainer] = None
+_container: Optional[Container] = None
 
 
-def get_container() -> ServiceContainer:
-    """Get the global service container"""
+def get_container() -> Container:
+    """Get the global container. Creates default if not set."""
     global _container
     if _container is None:
         _container = create_default_container()
     return _container
 
 
-def set_container(container: ServiceContainer):
-    """Set a custom service container (for testing or alternative implementations)"""
+def set_container(container: Container):
+    """Set a custom container (for testing or alternative implementations)."""
     global _container
     _container = container
+
+
+def reset_container():
+    """Reset the global container."""
+    global _container
+    _container = None

@@ -1,21 +1,19 @@
 """
-DefaultDominioLevelManager - Default implementation of IDominioLevelManager
+DominioLevelManager - Manages domain level calculations
 
-Manages domain level calculations and thresholds.
+Implements IDominioLevelManager interface.
 """
 
-from v2.interfaces import IDominioLevelManager, IConfigManager
+from interfaces import IDominioLevelManager
 
 
-class DefaultDominioLevelManager(IDominioLevelManager):
+class DominioLevelManager(IDominioLevelManager):
     """
-    Default domain level manager that calculates theoretical levels
-    based on invisible level thresholds.
+    Manages domain level calculations based on invisible level thresholds.
     """
     
     def __init__(self, container=None):
         self._container = container
-        # Level thresholds: invisible level >= threshold -> domain level
         self._thresholds = [
             (1.0, 1),
             (2.0, 2),
@@ -41,3 +39,13 @@ class DefaultDominioLevelManager(IDominioLevelManager):
             else:
                 break
         return nivel_dominio
+
+
+# Singleton accessor (backward compatibility)
+_instance = None
+
+def get_dominio_level_manager():
+    global _instance
+    if _instance is None:
+        _instance = DominioLevelManager()
+    return _instance
