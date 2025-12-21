@@ -69,6 +69,7 @@ class StartSessionRequest(BaseModel):
     """Request to start a new session"""
     user_ref: str = Field(..., description="User's Roble auth ID")
     num_exercises: int = Field(10, ge=1, le=50, description="Number of exercises")
+    batch_type: str = Field("regular", description="Type of batch: 'regular', 'miniboss', or 'endless'")
 
 
 class StartSessionResponse(BaseModel):
@@ -90,6 +91,8 @@ class CompleteSessionResponse(BaseModel):
     correct_answers: int
     score_earned: int
     difficulty_adjustments: Dict[str, Dict[str, float]]  # operator -> {old, new}
+    gamification: Optional[Dict] = None  # Gamification rewards info
+    endless_info: Optional[Dict] = None  # For endless mode: streak, best_streak
 
 
 class UserProfile(BaseModel):

@@ -289,7 +289,7 @@ def main():
         g = result_data['gamification']
         rewards = g.get('recompensas', {})
         
-        print(f"\n{Colors.YELLOW}🏆 RECOMPENSAS V2 🏆{Colors.ENDC}")
+        print(f"\n{Colors.WARNING}🏆 RECOMPENSAS V2 🏆{Colors.ENDC}")
         print(f" + {rewards.get('xp_ganada', 0)} XP")
         print(f" + {rewards.get('pp_ganados', 0)} Puntos de Práctica")
         print(f" + {rewards.get('pd', {}).get('total_pd_global', 0)} Puntos de Dominio")

@@ -364,11 +364,21 @@ async def start_session(request: StartSessionRequest):
         selected_op_state = random.choice(operations_state)
         operacion = selected_op_state.operacion
 
+        # Determine batch type: use explicit request type if provided, otherwise auto-detect
         batch_type = BatchType.REGULAR
-        detector = get_miniboss_detector()
-        is_boss = detector.is_miniboss_candidate(selected_op_state)
-        if is_boss:
+        is_boss = False
+        
+        if request.batch_type == "endless":
+            batch_type = BatchType.ENDLESS
+        elif request.batch_type == "miniboss":
             batch_type = BatchType.MINIBOSS
+            is_boss = True
+        else:
+            # Auto-detect miniboss for regular mode
+            detector = get_miniboss_detector()
+            is_boss = detector.is_miniboss_candidate(selected_op_state)
+            if is_boss:
+                batch_type = BatchType.MINIBOSS
 
         forced_exercises: List[V2Exercise] = []
         if batch_type == BatchType.REGULAR:
@@ -380,7 +390,8 @@ async def start_session(request: StartSessionRequest):
             operacion=operacion,
             nivel_invisible=selected_op_state.nivel_invisible,
             batch_type=batch_type,
-            forced_exercises=forced_exercises
+            forced_exercises=forced_exercises,
+            num_exercises=request.num_exercises
         )
 
         legacy_exercises = []
@@ -682,6 +693,15 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
             mb_eval = get_miniboss_evaluator()
             miniboss_aprobado = mb_eval.evaluate_miniboss(v2_results)
 
+        # Calculate endless streak for endless mode
+        endless_streak = 0
+        if batch_type_str == BatchType.ENDLESS:
+            for res in v2_results:
+                if res.es_correcto:
+                    endless_streak += 1
+                else:
+                    break  # Stop counting on first wrong answer
+
         try:
             exercise_records_legacy = []
             for ex in request.exercises:
@@ -725,7 +745,8 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
             pd_ganados=score_calc.calculate_pd(v2_results),
             xp_ganada=score_calc.calculate_xp(v2_results),
             duracion_segundos=int(sum(r.tiempo_segundos for r in v2_results)),
-            miniboss_aprobado=miniboss_aprobado
+            miniboss_aprobado=miniboss_aprobado,
+            endless_streak=endless_streak if batch_type_str == BatchType.ENDLESS else None
         )
         recorder.record_batch(batch_result, current_gamif)
 
@@ -750,13 +771,32 @@ async def complete_session(session_id: str, request: CompleteSessionRequest):
             },
             "level_up": miniboss_aprobado is True
         }
+        
+        # For endless mode, get the best streak from the leaderboard
+        endless_info = None
+        if batch_type_str == BatchType.ENDLESS:
+            from datetime import datetime
+            current_month = datetime.utcnow().strftime("%Y-%m")
+            endless_records = roble_client.read_table("pine_leaderboard_endless_mensual", {
+                "user_ref": user_ref,
+                "mes_id": current_month
+            })
+            best_streak = 0
+            if endless_records:
+                best_streak = endless_records[0].get("mejor_streak", 0)
+            endless_info = {
+                "streak": endless_streak,
+                "best_streak": best_streak
+            }
+        
         return CompleteSessionResponse(
             session_id=session_id,
             total_exercises=len(v2_results),
             correct_answers=batch_result.ejercicios_correctos,
             score_earned=score_earned,
             difficulty_adjustments=diff_adjustments,
-            gamification=gamif_legacy
+            gamification=gamif_legacy,
+            endless_info=endless_info
         )
         
         # Get session

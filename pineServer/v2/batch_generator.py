@@ -31,7 +31,8 @@ class BatchGenerator:
                       operacion: str, 
                       nivel_invisible: float,
                       batch_type: str = BatchType.REGULAR,
-                      forced_exercises: Optional[List[Exercise]] = None) -> List[Exercise]:
+                      forced_exercises: Optional[List[Exercise]] = None,
+                      num_exercises: int = 10) -> List[Exercise]:
         """
         Genera una lista de ejercicios para un batch
         
@@ -41,6 +42,7 @@ class BatchGenerator:
             nivel_invisible: Nivel de dificultad central
             batch_type: Tipo de batch deseado
             forced_exercises: Lista de ejercicios pre-definidos (ej: repaso) a incluir
+            num_exercises: Número de ejercicios a generar (usado para endless mode)
             
         Returns:
             Lista de objetos Exercise
@@ -49,7 +51,7 @@ class BatchGenerator:
         if batch_type == BatchType.MINIBOSS:
             return self._generate_miniboss_batch(operacion, nivel_invisible)
         elif batch_type == BatchType.ENDLESS:
-            return self._generate_endless_batch(operacion, nivel_invisible)
+            return self._generate_endless_batch(operacion, nivel_invisible, num_exercises)
         else:
             return self._generate_regular_batch(operacion, nivel_invisible, forced_exercises)
             
@@ -135,15 +137,12 @@ class BatchGenerator:
             
         return exercises
 
-    def _generate_endless_batch(self, operacion: str, nivel_invisible: float) -> List[Exercise]:
+    def _generate_endless_batch(self, operacion: str, nivel_invisible: float, size: int = 10) -> List[Exercise]:
         """
         Batch Endless:
         - Solo nivel central
         - Tipo respuesta nativo del nivel
         """
-        batch_config = self.config_manager.get_batch_config()
-        size = batch_config.get("size", 10)
-        
         exercises = []
         for _ in range(size):
             exercises.append(self.exercise_generator.generate_exercise(operacion, nivel_invisible))
