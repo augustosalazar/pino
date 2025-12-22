@@ -70,6 +70,7 @@ class StartSessionRequest(BaseModel):
     user_ref: str = Field(..., description="User's Roble auth ID")
     num_exercises: int = Field(10, ge=1, le=50, description="Number of exercises")
     batch_type: str = Field("regular", description="Type of batch: 'regular', 'miniboss', or 'endless'")
+    difficulty_level: Optional[float] = Field(None, ge=1.0, le=6.0, description="Difficulty level for endless mode (1.0-6.0)")
 
 
 class StartSessionResponse(BaseModel):

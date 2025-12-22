@@ -66,7 +66,8 @@ class SessionService:
         user_ref: str,
         num_exercises: int = 10,
         batch_type_override: Optional[str] = None,
-        operacion_override: Optional[str] = None
+        operacion_override: Optional[str] = None,
+        difficulty_level: Optional[float] = None
     ) -> Dict[str, Any]:
         """Start a new exercise session."""
         print(f"[SessionService] Starting session for: {user_ref}")
@@ -95,11 +96,17 @@ class SessionService:
         if batch_type == BatchType.REGULAR:
             forced = self._get_pending_exercises(user_ref, selected.operacion)
         
+        # For endless mode, use custom difficulty if provided, otherwise use user's current level
+        nivel_to_use = selected.nivel_invisible
+        if batch_type == BatchType.ENDLESS and difficulty_level is not None:
+            nivel_to_use = difficulty_level
+            print(f"[SessionService] Using custom difficulty for endless: {difficulty_level}")
+        
         # Generate batch
         exercises = self.batch_generator.generate_batch(
             user_ref=user_ref,
             operacion=selected.operacion,
-            nivel_invisible=selected.nivel_invisible,
+            nivel_invisible=nivel_to_use,
             batch_type=batch_type,
             forced_exercises=forced,
             num_exercises=num_exercises
@@ -161,8 +168,13 @@ class SessionService:
         # Mark completed pending
         self._process_completed_pending(exercise_results)
         
-        # Evaluate
-        nivel_nuevo = self.performance_evaluator.evaluate_performance(exercise_results, nivel_antes)
+        # Evaluate performance and adjust difficulty
+        # For endless mode, don't update user's actual level (keep it the same)
+        if batch_type == BatchType.ENDLESS:
+            nivel_nuevo = nivel_antes  # No level change for endless mode
+        else:
+            nivel_nuevo = self.performance_evaluator.evaluate_performance(exercise_results, nivel_antes)
+        
         score_parts = self.scoring_calculator.calculate_score_parts(exercise_results)
         score = score_parts["total"]
         

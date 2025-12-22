@@ -61,13 +61,14 @@ def ensure_user(user_ref: str):
         print(f"{Colors.FAIL}Error creating/fetching user: {e}{Colors.ENDC}")
         return None
 
-def start_session(user_ref: str, num_exercises: int = 10, batch_type: str = "regular"):
+def start_session(user_ref: str, num_exercises: int = 10, batch_type: str = "regular", difficulty_level: float = None):
     """Inicia una nueva sesión de práctica
     
     Args:
         user_ref: Referencia del usuario
         num_exercises: Número de ejercicios en la sesión
         batch_type: Tipo de sesión ('regular', 'miniboss', o 'endless')
+        difficulty_level: Nivel de dificultad para endless mode (1.0-6.0)
     """
     url = f"{BASE_URL}/api/sessions/start"
     payload = {
@@ -75,6 +76,8 @@ def start_session(user_ref: str, num_exercises: int = 10, batch_type: str = "reg
         "num_exercises": num_exercises,
         "batch_type": batch_type
     }
+    if difficulty_level is not None:
+        payload["difficulty_level"] = difficulty_level
     
     try:
         response = requests.post(url, json=payload, headers=HEADERS)
@@ -203,11 +206,25 @@ def main():
     
     # 3. Start Session
     input(f"\n{Colors.BOLD}Modo: {mode_names[batch_type]}{Colors.ENDC}")
-    input(f"Presiona ENTER para solicitar un batch de ejercicios...")
     
-    # For endless mode, we generate batches dynamically
-    num_exercises = 5 if batch_type == "endless" else 10
-    session_data = start_session(user_ref, num_exercises, batch_type)
+    # For endless mode, ask for difficulty level
+    difficulty_level = None
+    num_exercises = 10
+    if batch_type == "endless":
+        print(f"\n{Colors.CYAN}Selecciona nivel de dificultad para Endless:{Colors.ENDC}")
+        print("1. Muy Fácil (1.0)")
+        print("2. Fácil (2.0)")
+        print("3. Intermedio (3.0)")
+        print("4. Difícil (4.0)")
+        print("5. Muy Difícil (5.0)")
+        print("6. Experto (6.0)")
+        diff_choice = input(f"{Colors.BLUE}Selección (1-6, default=tu nivel actual): {Colors.ENDC}").strip()
+        diff_map = {"1": 1.0, "2": 2.0, "3": 3.0, "4": 4.0, "5": 5.0, "6": 6.0}
+        difficulty_level = diff_map.get(diff_choice)
+        num_exercises = 50
+    
+    input(f"Presiona ENTER para solicitar un batch de ejercicios...")
+    session_data = start_session(user_ref, num_exercises, batch_type, difficulty_level)
     
     if not session_data:
         return

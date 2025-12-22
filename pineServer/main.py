@@ -278,7 +278,8 @@ async def start_session(request: StartSessionRequest):
         result = service.start_session(
             user_ref=request.user_ref,
             num_exercises=request.num_exercises,
-            batch_type_override=request.batch_type
+            batch_type_override=request.batch_type,
+            difficulty_level=request.difficulty_level
         )
         
         # 2. Convert V2 exercises to legacy response format
